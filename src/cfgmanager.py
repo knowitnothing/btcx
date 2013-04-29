@@ -82,10 +82,17 @@ def obtain_key_secret(argl, **kwargs):
     print "   Available keys   "
     print "Exchange     Keyname"
     print "===================="
+    last_exc, last_kname = None, None
     for exchange, keyname in cfgman.list_all_keys():
         last_exc, last_kname = exchange, keyname
         print "%-13s%s" % (exchange, keyname)
     print "====================\n"
+
+    if last_exc is None:
+        print "** No keys available. You might want to re-run passing",
+        print "the -n option. **"
+        return None, None
+
     exchange = raw_input("Exchange [%s]: " % last_exc) or last_exc
     keyname = raw_input("Keyname [%s]: " % last_kname) or last_kname
     pwd = loop_ask(getpass.getpass, "Secret's password: ")
