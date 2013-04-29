@@ -221,7 +221,8 @@ def main(key, secret):
     app.exec_()
 
 if __name__ == "__main__":
-    print('Create or/and load a key/secret pair for MtGox.\n')
+    print('\nCreate or/and load a key/secret pair for MtGox to use '
+          'in this demo.\n')
     key, secret = cfgmanager.obtain_key_secret(sys.argv[1:])
     if key is None:
         print("Warning: Continuing without a key/secret pair.")
