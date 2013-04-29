@@ -492,4 +492,3 @@ def create_client(key, secret, currency="USD", secure=True,
 
 def start(factory):
     connectWS(factory, timeout=5)
-#    reactor.run()
