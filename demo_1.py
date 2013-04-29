@@ -15,8 +15,6 @@ qt4reactor.install()
 import sys
 import numpy
 import pylab
-from collections import deque
-from matplotlib import animation
 from twisted.internet import reactor, task
 
 # Own modules
