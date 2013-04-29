@@ -18,6 +18,12 @@ interface to HTTP(S) requests.
 + Qt and Matplotlib are used for the GUI/plotting in the current demo.
 
 
+Demo
+====
+
+![screenshot](screenshot/demo_1.png?raw=True)
+
+
 Donation
 ========
 
