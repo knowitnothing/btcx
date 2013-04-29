@@ -18,10 +18,14 @@ import pylab
 from twisted.internet import reactor, task
 
 # Own modules
-import btce
-import mtgox
-import cfgmanager
+from btcx import btce, mtgox, cfgmanager
 print("woof!")
+
+#def inf_i():
+#    i = 0
+#    while True:
+#        yield i
+#        i += 1
 
 
 class Plot(QG.QMainWindow):
@@ -42,6 +46,8 @@ class Plot(QG.QMainWindow):
         self.lag_xdata = numpy.arange(lag_n)
 
         self.create_gui_plot()
+
+        #self._frame = inf_i()
 
         self.timer = QC.QTimer()
         self.timer.timeout.connect(self._replot)
@@ -175,6 +181,10 @@ class Plot(QG.QMainWindow):
 
 
     def _replot(self):
+        #sshot = QG.QPixmap.grabWidget(self)
+        #name = 'sshot_%04d.png' % next(self._frame)
+        #sshot.save(name)
+        #print("Wrote", name)
         self.fig.canvas.draw()
 
 

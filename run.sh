@@ -1,6 +1,6 @@
 #!/bin/sh
 PYTHON="python2.7"
-PYTHONPATH="src:src/dep"
+PYTHONPATH="dep"
 
 NAME="demo_1.py"
 
