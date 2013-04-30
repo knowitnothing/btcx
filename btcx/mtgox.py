@@ -184,13 +184,13 @@ class MtgoxProtocol(WebSocketClientProtocol):
 
 
     def _extract_trade(self, trade):
+        tid = int(trade['tid'])
         currency = trade["price_currency"]
         if currency != self.currency or trade['primary'].lower() != 'y':
             # Ignore trades in different currency or that are not
             # primary.
             return (tid, None, None, None, None, None)
 
-        tid = int(trade['tid'])
         timestamp = int(trade['date'])
         ttype = trade['trade_type']
         factor = CURRENCY_FACTOR.get(currency, CURRENCY_DEFAULT_FACTOR)
