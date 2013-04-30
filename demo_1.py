@@ -70,7 +70,11 @@ class Demo(QG.QMainWindow):
 
 
     def mtgox_trade(self, (tid, timestamp, ttype, price, amount, coin)):
-        if ttype is None: # End of pre-fetch.
+        if tid is None:
+            # End of pre-fetch.
+            return
+        elif price is None:
+            # Trade in a different currency or not primary.
             return
         print('mtgox trade:', ttype, timestamp, float(price), amount)
         self.plot.append_value(float(price), 'trade', 'mtgox')
