@@ -24,7 +24,7 @@ Demo
 ![screenshot](screenshot/demo_1.png?raw=True)
 
 
-Bitcoint Donations
-==================
+Bitcoin Donations
+=================
 
 1BTCXAPHWyFheYWzM3mbWztEaX8GqCXiH3
