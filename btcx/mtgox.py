@@ -13,6 +13,7 @@ from decimal import Decimal
 
 from twisted.python import log
 from twisted.internet import reactor, task
+from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.words.xish.utility import EventDispatcher
 from autobahn.websocket import (WebSocketProtocol, WebSocketClientProtocol,
                                 WebSocketClientFactory, connectWS)
@@ -367,7 +368,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
 
 
 
-class MtgoxFactoryClient(WebSocketClientFactory):
+class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
 
     protocol = MtgoxProtocol
 
@@ -397,18 +398,35 @@ class MtgoxFactoryClient(WebSocketClientFactory):
 
         self.idkey_refresh_task = task.LoopingCall(self.refresh_idkey)
 
+
+    def clientConnectionFailed(self, connector, reason):
+        """Connection failed to complete."""
+        print("ConnectionFailed")
+        self._disconnected()
+        ReconnectingClientFactory.clientConnectionFailed(self,
+                connector, reason)
+
     def clientConnectionLost(self, connector, reason):
-        self.connected = False
-        if self.idkey_refresh_task.running:
-            self.idkey_refresh_task.stop()
-        connector.connect()
+        """Established connection has been lost."""
+        print("ConnectionLost")
+        self._disconnected()
+        ReconnectingClientFactory.clientConnectionLost(self,
+                connector, reason)
 
     def buildProtocol(self, addr):
+        print("buildProtocol")
+        self.resetDelay()
         proto = self.protocol(self.evt, self.key, self.secret,
                               self.currency, self.coin)
         proto.factory = self
         self.client = proto
         return proto
+
+    def _disconnected(self):
+        # Perform the mundane tasks when we disconnect.
+        self.connected = False
+        if self.idkey_refresh_task.running:
+            self.idkey_refresh_task.stop()
 
 
     def setup(self, none):
@@ -448,7 +466,7 @@ class MtgoxFactoryClient(WebSocketClientFactory):
             raise AttributeError('%r object has no attribute %r' % (
                     self.__class__.__name__, attr))
 
-    # Callbacks
+    # API Callbacks (due to events)
 
     def refresh_idkey(self):
         req_id = self.send_signed_call("/idkey")
