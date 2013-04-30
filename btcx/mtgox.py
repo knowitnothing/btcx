@@ -185,7 +185,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
 
     def _extract_trade(self, trade):
         currency = trade["price_currency"]
-        if currency != self.currency:
+        if currency != self.currency or trade['primary'].lower() != 'y':
             return (None, ) * 5
 
         tid = int(trade['tid'])
