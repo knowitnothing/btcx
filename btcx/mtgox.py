@@ -188,7 +188,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
         if currency != self.currency:
             return (None, ) * 5
 
-        tid = trade['tid']
+        tid = int(trade['tid'])
         timestamp = int(trade['date'])
         ttype = trade['trade_type']
         factor = CURRENCY_FACTOR.get(currency, CURRENCY_DEFAULT_FACTOR)
