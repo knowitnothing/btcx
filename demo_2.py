@@ -32,10 +32,15 @@ class TradeFetchStore(object):
             # ask for more!
             self.mtgox.load_trades_since(tid=self.last_tid)
             return
+
+        self.last_tid = max(self.last_tid, tid)
+        if price is None:
+            # Trade in a different currency or not primary.
+            return
+
         #print("trade", tid, timestamp, ttype, price, amount)
         self.cursor.execute("INSERT INTO %s VALUES (?, ?, ?, ?, ?)"%self.table,
                 (tid, timestamp, ttype, str(price), str(amount)))
-        self.last_tid = max(self.last_tid, tid)
 
 
 def main(key, secret):
