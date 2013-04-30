@@ -46,7 +46,8 @@ class SimplePlot(QG.QWidget):
                 self.xdata[k, lname] = numpy.arange(npoints, dtype=int)
                 self.last_xi[k, lname] = 0
 
-        self.create_gui_plot()
+        self.setup_gui()
+        self.create_plot()
 
         self.need_replot = True
         self.timer = QC.QTimer()
@@ -59,14 +60,10 @@ class SimplePlot(QG.QWidget):
         event.accept()
 
 
-    def create_gui_plot(self):
+    def setup_gui(self):
         self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self)
-        ax_cfg = iter(self.ax_bbox)
-        self.ax = {}
-        for name, _ in self.lineconfig:
-            self.ax[name] = self.fig.add_axes(next(ax_cfg))
         layout = QG.QVBoxLayout()
         layout.setMargin(0)
         layout.addWidget(self.canvas)
@@ -75,7 +72,12 @@ class SimplePlot(QG.QWidget):
             layout.addWidget(self.mpl_bar)
         self.setLayout(layout)
 
-        # Trade plot
+    def create_plot(self):
+        self.ax = {}
+        ax_cfg = iter(self.ax_bbox)
+        for name, _ in self.lineconfig:
+            self.ax[name] = self.fig.add_axes(next(ax_cfg))
+
         self.line = {}
         self.ylim = {}
         self.ylim_extra = {}
@@ -83,13 +85,14 @@ class SimplePlot(QG.QWidget):
             ax = self.ax[name]
             ax.set_title(value['title'])
             ax.set_ylabel(value['ylabel'])
+            self.ylim[name] = {}
             for lname, llbl, lcolor, kwargs in value['line']:
                 line = ax.plot([], [], lcolor, label=llbl, **kwargs)[0]
                 self.line[name, lname] = line
+                self.ylim[name][lname] = [float('inf'), float('-inf')]
 
             ax.set_xlim(0, value['numpoints'] - 1)
             pylab.setp(ax.get_xticklabels(), visible=False)
-            self.ylim[name] = [float('inf'), float('-inf')]
             self.ylim_extra[name] = value['ylim_extra']
 
             if value['grid']:
@@ -120,21 +123,25 @@ class SimplePlot(QG.QWidget):
         ydata = self.ydata[plotname, linename]
         xdata = self.xdata[plotname, linename]
         i = self.last_xi[plotname, linename]
-        ylim = list(self.ylim[plotname])
+        ylim = self.ylim[plotname][linename]
 
         if i == len(xdata):
             line.set_data(xdata, ydata)
-            ylim[0] = min(ylim[0], ydata.min())
-            ylim[1] = max(ylim[1], ydata.max())
+            ylim[0] = ydata.min()
+            ylim[1] = ydata.max()
         else:
             line.set_data(xdata[:i], ydata[:i])
-            ylim[0] = min(ylim[0], ydata[:i].min())
-            ylim[1] = max(ylim[1], ydata[:i].max())
+            ylim[0] = ydata[:i].min()
+            ylim[1] = ydata[:i].max()
 
-        self.ylim[plotname] = ylim
+        yl = [float('inf'), float('-inf')]
+        for yli in self.ylim[plotname].itervalues():
+            yl[0] = min(yl[0], yli[0])
+            yl[1] = max(yl[1], yli[1])
+
         self.ax[plotname].set_ylim(
-                ylim[0] - self.ylim_extra[plotname],
-                ylim[1] + self.ylim_extra[plotname])
+                yl[0] - self.ylim_extra[plotname],
+                yl[1] + self.ylim_extra[plotname])
         self.need_replot = True
 
 
@@ -193,7 +200,10 @@ if __name__ == "__main__":
     def random_data():
         import random
         pname, lname = random.choice(plot.ydata.keys())
-        plot.append_value(random.random(), pname, lname)
+        if random.random() < 0.05:
+            plot.append_value(random.random() * 100, pname, lname)
+        else:
+            plot.append_value(random.random(), pname, lname)
     timer = QC.QTimer()
     timer.timeout.connect(random_data)
     timer.start(20)
