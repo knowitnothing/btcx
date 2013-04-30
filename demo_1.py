@@ -27,7 +27,8 @@ class Demo(QG.QMainWindow):
         ax1_kw = {'lw': 2, 'ls': 'steps'}
         self.plot = SimplePlot(self, lineconfig=( # A plot with two axes
             # The first axis displays trades from MtGox and BTC-e
-            ('trade', {'title': u'Trades', 'ylabel': yl, 'numpoints': 120,
+            ('trade', {'title': u'Trades', 'ylabel': yl,
+                    'numpoints': 150, # Last 150 trades
                     'legend': {'loc': 'upper center',
                                'bbox_to_anchor': (0.5, -0.05), 'ncol': 2},
                     'grid': True,
@@ -98,12 +99,14 @@ def main(key, secret):
     plot = Demo(currency)
 
     mtgox_client = mtgox.create_client(key, secret, currency)
-    # After connecting, subscribe to the channels 'lag' and 'trades,
-    # and load trades from the last hour.
+    # After connecting, subscribe to the channels 'lag' and 'trades.
     mtgox_client.evt.listen('connected', lambda _:
             (mtgox_client.subscribe_type('lag'),
-             mtgox_client.subscribe_type('trades'),
-             mtgox_client.load_trades_short_history(1)))
+             mtgox_client.subscribe_type('trades')))
+    # The first time a connection is stablished, load trades from the
+    # last hour.
+    mtgox_client.evt.listen_once('connected', lambda _:
+             mtgox_client.load_trades_short_history(1))
     mtgox_client.evt.listen('trade_fetch', plot.mtgox_trade)
     mtgox_client.evt.listen('trade', plot.mtgox_trade)
     mtgox_client.evt.listen('lag', plot.mtgox_lag)
