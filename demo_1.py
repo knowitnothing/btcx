@@ -103,7 +103,7 @@ def main(key, secret):
     mtgox_client.evt.listen('connected', lambda _:
             (mtgox_client.subscribe_type('lag'),
              mtgox_client.subscribe_type('trades')))
-    # The first time a connection is stablished, load trades from the
+    # The first time a connection is established, load trades from the
     # last hour.
     mtgox_client.evt.listen_once('connected', lambda _:
              mtgox_client.load_trades_short_history(1))
