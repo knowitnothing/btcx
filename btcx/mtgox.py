@@ -142,7 +142,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
         #
         if hours_ago is None and tid is None:
             params = {}
-        elif tid:
+        elif tid is not None:
             params = {'since': tid}
         else:
             hours_ago = Decimal(hours_ago)
