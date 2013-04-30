@@ -130,16 +130,20 @@ class MtgoxProtocol(WebSocketClientProtocol):
         kwargs.update({'currency': currency})
         return self.signed_call('/wallet/history', kwargs)
 
-    def load_trades_short_history(self, hours_ago=Decimal('0.5')):
+    def load_trades_since(self, hours_ago=Decimal('0.5'), tid=None):
         # If the "hours_ago" parameter (default half hour) is None,
         # the last 24 hours of trades will be returned. Otherwise,
         # it will fetch up to maximum of 24 hours of trades.
         #
+        # If tid is specified, it takes preference over hours_ago.
+        #
         # A 'trade_fetch' event will be emitted for each trade
         # returned. The last one will contain only None values.
         #
-        if hours_ago is None:
+        if hours_ago is None and tid is None:
             params = {}
+        elif tid:
+            params = {'since': tid}
         else:
             hours_ago = Decimal(hours_ago)
             one_second = Decimal(1e6) # in microseconds
@@ -150,6 +154,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
         return self.signed_call('%s%s/money/trades/fetch' % (
             self.coin, self.currency),
             params=params, version=2)
+
 
     def subscribe_type(self, typ):
         self.sendMessage(json.dumps({'op': 'mtgox.subscribe', 'type': typ}))
@@ -178,6 +183,22 @@ class MtgoxProtocol(WebSocketClientProtocol):
             print("Unknown successfull remark: %s" % repr(data))
 
 
+    def _extract_trade(self, trade):
+        currency = trade["price_currency"]
+        if currency != self.currency:
+            return (None, ) * 5
+
+        tid = trade['tid']
+        timestamp = int(trade['date'])
+        ttype = trade['trade_type']
+        factor = CURRENCY_FACTOR.get(currency, CURRENCY_DEFAULT_FACTOR)
+        price = Decimal(trade['price_int']) / factor
+        coin = trade['item']
+        amount = Decimal(trade['amount_int']) / CURRENCY_FACTOR[coin]
+
+        return (tid, timestamp, ttype, price, amount, coin)
+
+
     def _handle_result(self, req_id, result):
         query = self.pending_scall.pop(req_id)
         start = 1 if query['call'].startswith('/') else 0
@@ -193,22 +214,18 @@ class MtgoxProtocol(WebSocketClientProtocol):
             rights = result['Rights']
             self.evt.emit(name, (trade_fee, rights))
         elif name.endswith('money/trades/fetch'):
-            coin_currency = name[:name.find('/', 1)]
-            for trade in result:
-                timestamp = int(trade['date'])
-                ttype = trade['trade_type']
-                factor = CURRENCY_FACTOR.get(trade['price_currency'],
-                        CURRENCY_DEFAULT_FACTOR)
-                price = Decimal(trade['price_int']) / factor
-                coin = trade['item']
-                amount = Decimal(trade['amount_int']) / CURRENCY_FACTOR[coin]
-                self.evt.emit('trade_fetch', (
-                    ttype, timestamp, price, amount, coin_currency))
-            self.evt.emit('trade_fetch', (None, None, None, None, None)) # end
+            coin_currency = (name[:name.find('/', 1)], )
+            for trade in result or []:
+                trade = self._extract_trade(trade)
+                if trade[0] is None:
+                    continue
+                self.evt.emit('trade_fetch', trade)
+            self.evt.emit('trade_fetch', (None, ) * 6) # end
         else:
             rtype = name.replace('/', '_')
             print("Emitting result event for %s" % rtype)
             self.evt.emit('result', (rtype, result))
+
 
     def _handle_depth(self, depth):
         currency = depth["currency"]
@@ -242,19 +259,11 @@ class MtgoxProtocol(WebSocketClientProtocol):
         self.evt.emit('ticker', (ask, bid, avg, low, high, vol, coin))
 
     def _handle_trade(self, trade):
-        currency = trade["price_currency"]
-        if currency != self.currency:
-            # Ignore trades in other currencies.
+        trade = self._extract_trade(trade)
+        if trade[0] is None:
             return
 
-        ttype = trade["trade_type"]
-        factor = CURRENCY_FACTOR.get(currency, CURRENCY_DEFAULT_FACTOR)
-        price = Decimal(trade["price_int"]) / factor
-        coin = trade["item"] # Always "BTC" currently.
-        amount = Decimal(trade["amount_int"]) / CURRENCY_FACTOR[coin]
-        timestamp = int(trade["date"]) # See also "tid".
-
-        self.evt.emit('trade', (ttype, timestamp, price, amount, coin))
+        self.evt.emit('trade', trade)
 
 
     def _extract_order(self, order):

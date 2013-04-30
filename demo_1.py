@@ -70,7 +70,7 @@ class Demo(QG.QMainWindow):
         quit_btn.pressed.connect(self.close)
 
 
-    def mtgox_trade(self, (ttype, timestamp, price, amount, coin)):
+    def mtgox_trade(self, (tid, timestamp, ttype, price, amount, coin)):
         if ttype is None: # End of pre-fetch.
             return
         print('mtgox trade:', ttype, timestamp, float(price), amount)
@@ -106,7 +106,7 @@ def main(key, secret):
     # The first time a connection is established, load trades from the
     # last hour.
     mtgox_client.evt.listen_once('connected', lambda _:
-             mtgox_client.load_trades_short_history(1))
+             mtgox_client.load_trades_since(hours_ago=1))
     mtgox_client.evt.listen('trade_fetch', plot.mtgox_trade)
     mtgox_client.evt.listen('trade', plot.mtgox_trade)
     mtgox_client.evt.listen('lag', plot.mtgox_lag)
