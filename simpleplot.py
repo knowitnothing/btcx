@@ -27,6 +27,7 @@ class SimplePlot(QG.QWidget):
         #
         #       The pair key (plot name) and name (line name) must be unique.
         #
+
         QG.QWidget.__init__(self, parent)
 
         self.navbar = navbar
@@ -149,28 +150,6 @@ class SimplePlot(QG.QWidget):
         if self.need_replot:
             self.fig.canvas.draw()
             self.need_replot = False
-
-
-def main(key, secret):
-
-    mtgox_client = mtgox.create_client(key, secret, currency)
-    # After connecting, subscribe to the channels 'lag' and 'trades,
-    # and load trades from the last hour.
-    mtgox_client.evt.listen('connected', lambda _:
-            (mtgox_client.subscribe_type('lag'),
-             mtgox_client.subscribe_type('trades'),
-             mtgox_client.load_trades_short_history(1)))
-    mtgox_client.evt.listen('trade_fetch', plot.mtgox_trade)
-    mtgox_client.evt.listen('trade', plot.mtgox_trade)
-    mtgox_client.evt.listen('lag', plot.mtgox_lag)
-    mtgox.start(mtgox_client)
-
-    btce_client = btce.create_client('', '') # No key/secret.
-    btce_client.evt.listen('trades', plot.btce_trade)
-    # Get the last trades each x seconds.
-    btce_trade_pool = task.LoopingCall(lambda:
-            btce_client.trades(currency=currency))
-    btce_trade_pool.start(10) # x seconds
 
 
 if __name__ == "__main__":
