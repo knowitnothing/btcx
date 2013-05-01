@@ -312,6 +312,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
         # Handshake completed.
         print("Connected")
         self.ping_task.start(self.ping_delay)
+        self.factory.setup()
         self.evt.emit('connected')
 
     def onClose(self, clean, code, reason):
@@ -405,7 +406,6 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
         self.evt.listen('remark', self.got_remark)
         self.evt.listen('result', self.got_result)
         self.evt.listen('channel', self.got_channel)
-        self.evt.listen('connected', self.setup)
 
         self.idkey_refresh_task = task.LoopingCall(self.refresh_idkey)
 
@@ -440,7 +440,7 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
             self.idkey_refresh_task.stop()
 
 
-    def setup(self, none):
+    def setup(self):
         # Websocket connected.
         self.connected = True
 
