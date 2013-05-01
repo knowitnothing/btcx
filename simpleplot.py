@@ -50,7 +50,7 @@ class SimplePlot(QG.QWidget):
         self.setup_gui()
         self.create_plot()
 
-        self.need_replot = True
+        self.need_replot = False
         self.timer = QC.QTimer()
         self.timer.timeout.connect(self._replot)
         self.timer.start(timeout) # x ms for timeout.
@@ -87,9 +87,10 @@ class SimplePlot(QG.QWidget):
             ax.set_title(value['title'])
             ax.set_ylabel(value['ylabel'])
             self.ylim[name] = {}
+            self.line[name] = {}
             for lname, llbl, lcolor, kwargs in value['line']:
                 line = ax.plot([], [], lcolor, label=llbl, **kwargs)[0]
-                self.line[name, lname] = line
+                self.line[name][lname] = line
                 self.ylim[name][lname] = [float('inf'), float('-inf')]
 
             ax.set_xlim(0, value['numpoints'] - 1)
@@ -120,20 +121,15 @@ class SimplePlot(QG.QWidget):
 
 
     def update_line(self, plotname, linename):
-        line = self.line[plotname, linename]
+        line = self.line[plotname][linename]
         ydata = self.ydata[plotname, linename]
         xdata = self.xdata[plotname, linename]
         i = self.last_xi[plotname, linename]
         ylim = self.ylim[plotname][linename]
 
-        if i == len(xdata):
-            line.set_data(xdata, ydata)
-            ylim[0] = ydata.min()
-            ylim[1] = ydata.max()
-        else:
-            line.set_data(xdata[:i], ydata[:i])
-            ylim[0] = ydata[:i].min()
-            ylim[1] = ydata[:i].max()
+        line.set_data(xdata[:i], ydata[:i])
+        ylim[0] = ydata[:i].min()
+        ylim[1] = ydata[:i].max()
 
         yl = [float('inf'), float('-inf')]
         for yli in self.ylim[plotname].itervalues():
@@ -147,9 +143,11 @@ class SimplePlot(QG.QWidget):
 
 
     def _replot(self):
-        if self.need_replot:
-            self.fig.canvas.draw()
-            self.need_replot = False
+        if not self.need_replot:
+            return
+
+        self.fig.canvas.draw_idle()
+        self.need_replot = False
 
 
 if __name__ == "__main__":
@@ -172,7 +170,7 @@ if __name__ == "__main__":
                     'line': (('x', u'', 'k', {'lw': 1, 'ls': 'steps'}), )}
         )),
         ax_bbox=(([0.1, 0.4, 0.8, 0.55], [0.1, 0.05, 0.8, 0.2])),
-        navbar=True, timeout=20)
+        navbar=True, timeout=5)
     plot.show()
     plot.raise_()
 
@@ -185,6 +183,6 @@ if __name__ == "__main__":
             plot.append_value(random.random(), pname, lname)
     timer = QC.QTimer()
     timer.timeout.connect(random_data)
-    timer.start(20)
+    timer.start(10)
 
     app.exec_()
