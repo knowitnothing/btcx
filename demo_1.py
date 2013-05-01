@@ -15,6 +15,7 @@ from matplotlib.ticker import ScalarFormatter
 # Own modules
 from btcx import btce, mtgox, cfgmanager
 from simpleplot import SimplePlot
+import systray
 print("woof!")
 
 
@@ -22,6 +23,10 @@ class Demo(QG.QMainWindow):
 
     def __init__(self, currency='USD'):
         QG.QMainWindow.__init__(self)
+
+        # Show last trade price from MtGox in the systray.
+        self.stray = systray.TextSysTray(self, "-")
+        self.stray.show()
 
         yl = u'%s/BTC' % currency
         ax1_kw = {'lw': 2, 'ls': 'steps'}
@@ -88,6 +93,11 @@ class Demo(QG.QMainWindow):
             return
         print('mtgox trade:', ttype, timestamp, float(price), amount)
         self.plot.append_value(float(price), 'trade', 'mtgox')
+
+        last_s_price = str(price)
+        if last_s_price.find('.') > 0:
+            last_s_price = last_s_price[:last_s_price.find('.') + 2]
+        self.stray.update_text(last_s_price)
 
     def btce_trade(self, data):
         for item in data:
