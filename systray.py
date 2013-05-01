@@ -1,45 +1,50 @@
 import PyQt4.QtGui as QG
 import PyQt4.QtCore as QC
 
+def chunk(seq, size):
+    for i in xrange(0, len(seq), size):
+        yield seq[i:i+size]
+
+
 class TextSysTray(object):
-    def __init__(self, parent, text):
-        self.stray1 = QG.QSystemTrayIcon(parent) # Yep..
-        self.stray2 = QG.QSystemTrayIcon(parent) # thad bad.
+    def __init__(self, parent, text, ntray=2, **kwargs):
+        self.stray = [QG.QSystemTrayIcon(parent) for _ in xrange(ntray)]
         self._curr_text = None
-        self.update_text(text)
+        self.update_text(text, **kwargs)
 
     def show(self):
-        self.stray2.show()
-        self.stray1.show()
+        for stray in self.stray:
+            stray.show()
 
-    def update_text(self, text, color=QC.Qt.black):
+    def update_text(self, text, color=QC.Qt.black, chunk_size=1):
         if text == self._curr_text:
             return
         self._curr_text = text
-        pixmap1 = QG.QPixmap(24, 16)
-        pixmap1.fill(QC.Qt.transparent)
-        pixmap2 = QG.QPixmap(24, 16)
-        pixmap2.fill(QC.Qt.transparent)
 
-        painter = QG.QPainter()
-        painter.begin(pixmap1)
-        painter.setPen(color)
-        painter.drawText(pixmap1.rect(), QC.Qt.AlignRight, str(text)[:3])
-        painter.end()
-        painter = QG.QPainter()
-        painter.begin(pixmap2)
-        painter.setPen(color)
-        painter.drawText(pixmap2.rect(), QC.Qt.AlignLeft, str(text)[3:])
-        painter.end()
+        self.pix = []
+        tc = chunk(text, chunk_size)
+        for stray in self.stray[::-1]:
+            pix = QG.QPixmap(24, 16)
+            pix.fill(QC.Qt.transparent)
+            self.pix.append(pix)
 
-        self.stray1.setIcon(QG.QIcon(pixmap1))
-        self.stray2.setIcon(QG.QIcon(pixmap2))
+            painter = QG.QPainter()
+            painter.begin(pix)
+            painter.setPen(color)
+            try:
+                t = next(tc)
+            except StopIteration:
+                t = ''
+            painter.drawText(pix.rect(), QC.Qt.AlignRight, t)
+            painter.end()
+
+            stray.setIcon(QG.QIcon(pix))
 
 
 if __name__ == "__main__":
     app = QG.QApplication([])
     win = QG.QDialog()
-    trayicon = TextSysTray(win, '888.8')
+    trayicon = TextSysTray(win, '888.8', chunk_size=3)
     trayicon.show()
     win.show()
     app.exec_()

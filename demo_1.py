@@ -97,7 +97,7 @@ class Demo(QG.QMainWindow):
         last_s_price = str(price)
         if last_s_price.find('.') > 0:
             last_s_price = last_s_price[:last_s_price.find('.') + 2]
-        self.stray.update_text(last_s_price)
+        self.stray.update_text(last_s_price, chunk_size=3)
 
     def btce_trade(self, data):
         for item in data:
