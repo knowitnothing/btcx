@@ -19,6 +19,9 @@ import systray
 print("woof!")
 
 
+# Note: Avg is actually VWAP
+WINDOW_TITLE = u'MtGox - High: $ %(high)s - Low: $ %(low)s - Avg: $ %(avg)s'
+
 class Demo(QG.QMainWindow):
 
     def __init__(self, currency='USD'):
@@ -94,6 +97,7 @@ class Demo(QG.QMainWindow):
         print('mtgox trade:', ttype, timestamp, float(price), amount)
         self.plot.append_value(float(price), 'trade', 'mtgox')
 
+        # Show price in systray.
         last_s_price = str(price)
         if last_s_price.find('.') > 0:
             last_s_price = last_s_price[:last_s_price.find('.') + 2]
@@ -115,9 +119,10 @@ class Demo(QG.QMainWindow):
     def mtgox_lag(self, lag):
         self.plot.append_value(float(lag), 'lag', 'mtgox')
 
-    def mtgox_vol(self, (ask, bid, avg, low, high, vol, coin)):
-        # Ticker data.
+    def mtgox_vol(self, (ask, bid, vwap, low, high, vol, coin)):
         self.plot.append_value(float(vol), 'vol', 'mtgox')
+        # Show ticker data in window's title.
+        self.setWindowTitle(WINDOW_TITLE % {'high':high, 'low':low, 'avg':vwap})
 
 
 def main(key, secret):
