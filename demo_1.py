@@ -48,15 +48,16 @@ class Demo(QG.QMainWindow):
                     'line': (('mtgox', u'', 'k', {}), )})
             ),
             # Bounding box configuration for the two axes
-            ax_bbox=(([0.1, 0.4, 0.8, 0.55], # trade
-                      [0.1, 0.05, 0.32, 0.2], # lag
-                      [0.55, 0.05, 0.35, 0.2]  # vol
+            ax_bbox=(([0.1, 0.38, 0.88, 0.55], # trade
+                      [0.1, 0.03, 0.38, 0.2], # lag
+                      [0.6, 0.03, 0.38, 0.2]  # vol
                       )),
             # Display a navigation bar with tools
             navbar=True,
             # Refresh the plots (if needed) each 300 ms
             timeout=300)
 
+        # Disable scientific notation.
         self.plot.ax['vol'].yaxis.set_major_formatter(ScalarFormatter(False))
 
         # Keep the timestamp of the most recent trade in BTC-e.
