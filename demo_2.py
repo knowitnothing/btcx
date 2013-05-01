@@ -19,6 +19,7 @@ class TradeFetchStore(object):
         self.cursor.execute("""SELECT tid FROM %s
                 ORDER BY tid DESC LIMIT 1""" % self.table)
         res = self.cursor.fetchone()
+        self.prev_last = None
         self.last_tid = 0 if res is None else res[0]
         print(self.last_tid)
 
@@ -28,9 +29,14 @@ class TradeFetchStore(object):
     def on_trade_fetch(self, (tid, timestamp, ttype, price, amount, coin)):
         if tid is None:
             self.db.commit()
-            print("tid", self.last_tid, "<<")
-            # ask for more!
-            self.mtgox.load_trades_since(tid=self.last_tid)
+            print("tid", self.last_tid, self.prev_last, "<<")
+            if self.prev_last == self.last_tid:
+                print("Got it all, congrats.")
+                reactor.stop()
+            else:
+                # Ask for more!
+                self.prev_last = self.last_tid
+                self.mtgox.load_trades_since(tid=self.last_tid)
             return
 
         self.last_tid = max(self.last_tid, tid)
