@@ -254,11 +254,11 @@ class MtgoxProtocol(WebSocketClientProtocol):
         bid = Decimal(ticker["buy"]["value_int"]) / factor
         coin = ticker["vol"]["currency"]
         vol = Decimal(ticker["vol"]["value_int"]) / CURRENCY_FACTOR[coin]
-        avg = Decimal(ticker["avg"]["value_int"]) / factor
+        vwap = Decimal(ticker["vwap"]["value_int"]) / factor
         low = Decimal(ticker["low"]["value_int"]) / factor
         high = Decimal(ticker["high"]["value_int"]) / factor
 
-        self.evt.emit('ticker', (ask, bid, avg, low, high, vol, coin))
+        self.evt.emit('ticker', (ask, bid, vwap, low, high, vol, coin))
 
     def _handle_trade(self, trade):
         trade = self._extract_trade(trade)
