@@ -10,6 +10,7 @@ qt4reactor.install()
 import sys
 import numpy
 from twisted.internet import reactor, task
+from matplotlib.ticker import ScalarFormatter
 
 # Own modules
 from btcx import btce, mtgox, cfgmanager
@@ -41,14 +42,22 @@ class Demo(QG.QMainWindow):
                     'ylim_extra': 0.1,
                     # A black line, one pixel width, stepwise.
                     'line': (('mtgox', u'', 'k', {'lw': 1, 'ls': 'steps'}), )}
-                )
+                ),
+            ('vol', {'title': u'', 'ylabel': u'MtGox BTC Vol.',
+                    'numpoints': 60, 'ylim_extra': 10,
+                    'line': (('mtgox', u'', 'k', {}), )})
             ),
             # Bounding box configuration for the two axes
-            ax_bbox=(([0.1, 0.4, 0.8, 0.55], [0.1, 0.05, 0.8, 0.2])),
+            ax_bbox=(([0.1, 0.4, 0.8, 0.55], # trade
+                      [0.1, 0.05, 0.32, 0.2], # lag
+                      [0.55, 0.05, 0.35, 0.2]  # vol
+                      )),
             # Display a navigation bar with tools
             navbar=True,
             # Refresh the plots (if needed) each 300 ms
             timeout=300)
+
+        self.plot.ax['vol'].yaxis.set_major_formatter(ScalarFormatter(False))
 
         # Keep the timestamp of the most recent trade in BTC-e.
         self.last_btce_ts = float('-inf')
@@ -95,6 +104,10 @@ class Demo(QG.QMainWindow):
     def mtgox_lag(self, lag):
         self.plot.append_value(float(lag), 'lag', 'mtgox')
 
+    def mtgox_vol(self, (ask, bid, avg, low, high, vol, coin)):
+        # Ticker data.
+        self.plot.append_value(float(vol), 'vol', 'mtgox')
+
 
 def main(key, secret):
     currency = 'USD' # Changing this to 'EUR' should work just fine.
@@ -105,6 +118,7 @@ def main(key, secret):
     # After connecting, subscribe to the channels 'lag' and 'trades.
     mtgox_client.evt.listen('connected', lambda _:
             (mtgox_client.subscribe_type('lag'),
+             mtgox_client.subscribe_type('ticker'),
              mtgox_client.subscribe_type('trades')))
     # The first time a connection is established, load trades from the
     # last hour.
@@ -113,6 +127,7 @@ def main(key, secret):
     mtgox_client.evt.listen('trade_fetch', plot.mtgox_trade)
     mtgox_client.evt.listen('trade', plot.mtgox_trade)
     mtgox_client.evt.listen('lag', plot.mtgox_lag)
+    mtgox_client.evt.listen('ticker', plot.mtgox_vol)
     mtgox.start(mtgox_client)
 
     btce_client = btce.create_client('', '') # No key/secret.

@@ -21,7 +21,7 @@ interface to HTTP(S) requests.
 Demo
 ====
 
-![screenshot](screenshot/demo_1.png?raw=True)
+![screenshot](screenshot/demo_1_up1.png?raw=True)
 
 
 Bitcoin Donations
