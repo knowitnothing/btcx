@@ -10,13 +10,13 @@ from btcx import mtgox
 
 
 class TradeFetchStore(object):
-    def __init__(self, db, table, mtgox, max_hours_ago=4, verbose=1):
+    def __init__(self, db, table, mtgox_cli, max_hours_ago=4, verbose=1):
         self.verbose = verbose
 
         self.db = db
         self.table = table
         self.cursor = db.cursor()
-        self.mtgox = mtgox
+        self.mtgox = mtgox_cli
         self.mtgox.evt.listen('connected', self.load_from_last_stored)
         self.mtgox.evt.listen('trade_fetch', self.on_trade_fetch)
         self.cursor.execute("""SELECT tid FROM [%s]
@@ -26,7 +26,7 @@ class TradeFetchStore(object):
 
         self.last_tid = 0 if res is None else res[0]
         if max_hours_ago is not None:
-            self.last_tid = max(self.last_tid, calc_tid(max_hours_ago))
+            self.last_tid = max(self.last_tid, mtgox.calc_tid(max_hours_ago))
         # Otherwise, if self.last_tid == 0 then be ready to download the
         # entire trade history!
 
@@ -65,21 +65,13 @@ class TradeFetchStore(object):
                 (tid, timestamp, ttype, str(price), str(amount)))
 
 
-# Either give a string to hours_ago or a Decimal object.
-# XXX Duplicated code from load_trades_since at btcx.mtgox.
-def calc_tid(hours_ago):
-    hours_ago = Decimal(hours_ago)
-    one_second = Decimal(1e6) # in microseconds
-    now = int(time.time()) * one_second
-    return int(now - (hours_ago * (one_second * 60 * 60)))
-
 
 def trades_from_db(db, hours_ago=Decimal('1.0'), raw_tid=None, rounding=True,
         table='btcusd'):
     if raw_tid is not None:
         since = raw_tid
     else:
-        since = calc_tid(hours_ago)
+        since = mtgox.calc_tid(hours_ago)
         if rounding:
             # Round to start on some exact minute.
             tstruct = list(time.gmtime(since/1e6))

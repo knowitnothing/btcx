@@ -32,6 +32,13 @@ CURRENCY_FACTOR = {
 CURRENCY_DEFAULT_FACTOR = Decimal(100000)
 
 
+def calc_tid(hours_ago):
+    hours_ago = Decimal(hours_ago)
+    one_second = Decimal(1e6) # in microseconds
+    now = int(time.time()) * one_second
+    return int(now - (hours_ago * (one_second * 60 * 60)))
+
+
 class MtgoxProtocol(WebSocketClientProtocol):
 
     def __init__(self, evt, key, secret, currency, coin, http_api):
@@ -174,11 +181,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
         elif tid is not None:
             params = {'since': tid}
         else:
-            hours_ago = Decimal(hours_ago)
-            one_second = Decimal(1e6) # in microseconds
-            now = int(time.time()) * one_second
-            since = now - (hours_ago * (one_second * 60 * 60))
-            params = {'since': int(since)}
+            params = {'since': calc_tid(hours_ago)}
 
         self.http_public_call('%s%s/money/trades/fetch' % (
             self.coin, self.currency),
