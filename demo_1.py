@@ -175,7 +175,8 @@ def main(key, secret):
     bitstamp_cli.transactions(timedelta=60*60) # Trades from last hour.
     # Get the last trades each x seconds.
     bitstamp_trade_pool = task.LoopingCall(lambda:
-            bitstamp_cli.timedelta(60) if plot.last_bitstamp_ts else None)
+            bitstamp_cli.transactions(timedelta=60) if
+                plot.last_bitstamp_ts > 0 else None)
     bitstamp_trade_pool.start(10) # x seconds.
 
     print('Showing GUI..')
