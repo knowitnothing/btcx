@@ -37,8 +37,6 @@ class Candlestick(QG.QWidget):
         self.canvas.setParent(self)
 
         ax_bbox = ([0.1, 0.28, 0.87, 0.68], [0.1, 0.04, 0.87, 0.2])
-        #self.ax = self.fig.add_subplot(2, 1, 1) # candlesticks
-        #self.ax_vol = self.fig.add_subplot(2, 1, 2, sharex=self.ax) # volume
         self.ax = self.fig.add_axes(ax_bbox[0]) # candlesticks
         self.ax_vol = self.fig.add_axes(ax_bbox[1], sharex=self.ax) # volume
 
@@ -152,7 +150,6 @@ class Candlestick(QG.QWidget):
         self.ax.set_ylim(self.ylim[0] - self.ylim_extra,
                          self.ylim[1] + self.ylim_extra)
         self.ax_vol.set_ylim(0, self.vol_max)
-        # XXX Shouldn't I call self.canvas.draw_idle() here ?
 
 
 if __name__ == "__main__":
