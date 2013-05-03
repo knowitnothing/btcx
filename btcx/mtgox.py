@@ -11,9 +11,11 @@ import hashlib
 import binascii
 from decimal import Decimal
 
+import treq # Used for public HTTP-API calls
 from twisted.python import log
 from twisted.internet import reactor, task
 from twisted.internet.protocol import ReconnectingClientFactory
+from twisted.web.http_headers import Headers
 from twisted.words.xish.utility import EventDispatcher
 from autobahn.websocket import (WebSocketProtocol, WebSocketClientProtocol,
                                 WebSocketClientFactory, connectWS)
@@ -32,13 +34,14 @@ CURRENCY_DEFAULT_FACTOR = Decimal(100000)
 
 class MtgoxProtocol(WebSocketClientProtocol):
 
-    def __init__(self, evt, key, secret, currency, coin):
+    def __init__(self, evt, key, secret, currency, coin, http_api):
 
         self.evt = evt
         self.key = key
         self.secret = secret
         self.currency = currency
         self.coin = coin
+        self.http_api = http_api
 
         self.subscribed_channel = {}
 
@@ -94,6 +97,21 @@ class MtgoxProtocol(WebSocketClientProtocol):
         self.sendMessage(json.dumps(call))
         return req_id
 
+    def http_public_call(self, endpoint, version=2, **kwargs):
+        #print('calling %s/%d/%s' % (self.http_api, version, endpoint), kwargs)
+        headers = Headers({"User-Agent": [USER_AGENT]})
+        d = treq.get('%s/%d/%s' % (self.http_api, version, endpoint),
+                params=kwargs, headers=headers)
+        d.addCallback(lambda response:
+                self._handle_http_api(response, endpoint))
+
+    def _handle_http_api(self, response, endpoint): # Take **kwargs too XXX
+        d = treq.json_content(response)
+        d.addCallback(self._handle_result, endpoint)
+        d.addErrback(lambda err, endpoint:
+                print("Error when calling %s: %s" % (endpoint,
+                    err.getBriefTraceback())), endpoint)
+
 
     # Helper/semiAPI functions
 
@@ -130,6 +148,17 @@ class MtgoxProtocol(WebSocketClientProtocol):
         kwargs.update({'currency': currency})
         return self.signed_call('/wallet/history', kwargs)
 
+    def subscribe_type(self, typ):
+        self.sendMessage(json.dumps({'op': 'mtgox.subscribe', 'type': typ}))
+
+    def unsubscribe_cid(self, cid):
+        self.sendMessage(json.dumps({'op': 'unsubscribe', 'channel': cid}))
+        if cid in self.subscribed_channel:
+            del self.subscribed_channel[cid]
+
+
+    # Public calls on HTTP API
+
     def load_trades_since(self, hours_ago=Decimal('0.5'), tid=None):
         # If the "hours_ago" parameter (default half hour) is None,
         # the last 24 hours of trades will be returned. Otherwise,
@@ -151,18 +180,9 @@ class MtgoxProtocol(WebSocketClientProtocol):
             since = now - (hours_ago * (one_second * 60 * 60))
             params = {'since': int(since)}
 
-        return self.signed_call('%s%s/money/trades/fetch' % (
+        self.http_public_call('%s%s/money/trades/fetch' % (
             self.coin, self.currency),
-            params=params, version=2)
-
-
-    def subscribe_type(self, typ):
-        self.sendMessage(json.dumps({'op': 'mtgox.subscribe', 'type': typ}))
-
-    def unsubscribe_cid(self, cid):
-        self.sendMessage(json.dumps({'op': 'unsubscribe', 'channel': cid}))
-        if cid in self.subscribed_channel:
-            del self.subscribed_channel[cid]
+            version=2, **params)
 
 
     # Methods called to handle MtGox responses.
@@ -201,10 +221,19 @@ class MtgoxProtocol(WebSocketClientProtocol):
         return (tid, timestamp, ttype, price, amount, coin)
 
 
-    def _handle_result(self, req_id, result):
-        query = self.pending_scall.pop(req_id)
-        start = 1 if query['call'].startswith('/') else 0
-        name = query['call'][start:]
+    def _handle_result(self, result, req_id):
+        if req_id in self.pending_scall:
+            query = self.pending_scall.pop(req_id)
+            start = 1 if query['call'].startswith('/') else 0
+            name = query['call'][start:]
+        else:
+            # Result from HTTP API
+            name = req_id
+            # XXX Handle when result['result'] != 'success'
+            if result['result'] != 'success':
+                print("HTTP API FAILED!", name, result)
+            result = result['data']
+
         if name == 'idkey':
             self.evt.emit(name, result)
         elif name == 'orders':
@@ -339,7 +368,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
 
         if op == "result":
             # Output from HTTP API version 1 that were sent over the websocket.
-            self._handle_result(data["id"], data["result"])
+            self._handle_result(data["result"], data["id"])
 
         elif op == "private":
             # Real time market information
@@ -384,13 +413,14 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
 
     protocol = MtgoxProtocol
 
-    def __init__(self, key, secret, currency, coin='BTC', **kwargs):
+    def __init__(self, key, secret, currency, http_api, coin='BTC', **kwargs):
         WebSocketClientFactory.__init__(self, **kwargs)
 
         self.evt = ExchangeEvent(eventprefix="//mtgox")
         self.key = binascii.unhexlify(key.replace('-', ''))
         self.secret = base64.b64decode(secret)
         self.currency = currency
+        self.http_api = http_api
         self.coin = coin
 
         self.known_channels = {
@@ -428,7 +458,7 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
         print("buildProtocol")
         self.resetDelay()
         proto = self.protocol(self.evt, self.key, self.secret,
-                              self.currency, self.coin)
+                              self.currency, self.coin, self.http_api)
         proto.factory = self
         self.client = proto
         return proto
@@ -501,7 +531,8 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
 
 
 def create_client(key, secret, currency="USD", secure=True,
-        addr="websocket.mtgox.com", debug=False, extradebug=False):
+        addr="websocket.mtgox.com", http_addr="data.mtgox.com/api",
+        debug=False, extradebug=False):
 
     if extradebug:
         log.startLogging(sys.stdout)
@@ -511,8 +542,10 @@ def create_client(key, secret, currency="USD", secure=True,
     ws_addr = "%s://%s:%d" % ('wss' if secure else 'ws', addr, port)
     ws_path = "/mtgox?Currency="
 
+    http_api_url = '%s://%s' % ('https' if secure else 'http', http_addr)
+
     factory = MtgoxFactoryClient(key, secret, currency.upper(),
-            url="%s%s%s" % (ws_addr, ws_path, currency),
+            http_api_url, url="%s%s%s" % (ws_addr, ws_path, currency),
             useragent="%s\x0d\x0aOrigin: %s" % (USER_AGENT, ws_origin),
             debug=debug, debugCodePaths=debug)
     factory.setProtocolOptions(version=13)
