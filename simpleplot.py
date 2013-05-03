@@ -19,7 +19,7 @@ class SimplePlot(QG.QWidget):
         #       value: a dict with the mandatory keys:
         #                 title: plot title
         #                 ylabel: plot ylabel
-        #                 numpoints: number of points in the plot
+        #                 numpoints: number of points to store
         #                 line: a sequence of (name, label, color,, kwargs)
         #              optional keys:
         #                 grid
@@ -47,8 +47,8 @@ class SimplePlot(QG.QWidget):
                 self.xdata[k, lname] = numpy.arange(npoints, dtype=int)
                 self.last_xi[k, lname] = 0
 
-        self.setup_gui()
         self.create_plot()
+        self.setup_gui()
 
         self.need_replot = False
         self.timer = QC.QTimer()
@@ -62,9 +62,6 @@ class SimplePlot(QG.QWidget):
 
 
     def setup_gui(self):
-        self.fig = Figure()
-        self.canvas = FigureCanvas(self.fig)
-        self.canvas.setParent(self)
         layout = QG.QVBoxLayout()
         layout.setMargin(0)
         layout.addWidget(self.canvas)
@@ -74,6 +71,10 @@ class SimplePlot(QG.QWidget):
         self.setLayout(layout)
 
     def create_plot(self):
+        self.fig = Figure()
+        self.canvas = FigureCanvas(self.fig)
+        self.canvas.setParent(self)
+
         self.ax = {}
         ax_cfg = iter(self.ax_bbox)
         for name, _ in self.lineconfig:
@@ -124,8 +125,8 @@ class SimplePlot(QG.QWidget):
         line = self.line[plotname][linename]
         ydata = self.ydata[plotname, linename]
         xdata = self.xdata[plotname, linename]
-        i = self.last_xi[plotname, linename]
         ylim = self.ylim[plotname][linename]
+        i = self.last_xi[plotname, linename]
 
         line.set_data(xdata[:i], ydata[:i])
         ylim[0] = ydata[:i].min()
@@ -146,7 +147,7 @@ class SimplePlot(QG.QWidget):
         if not self.need_replot:
             return
 
-        self.fig.canvas.draw_idle()
+        self.canvas.draw_idle()
         self.need_replot = False
 
 
