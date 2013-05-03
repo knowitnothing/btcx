@@ -43,9 +43,9 @@ class Demo(QG.QMainWindow):
                     'grid': True,
                     'ylim_extra': 0.3,
                     # Blue, red and green lines, respectively.
-                    'line': (('mtgox', u'MtGox', 'b', ax1_kw),
+                    'line': (('bitstamp', u'Bitstamp', 'g', ax1_kw),
                              ('btce', u'BTC-e', 'r', ax1_kw),
-                             ('bitstamp', u'Bitstamp', 'g', ax1_kw))}
+                             ('mtgox', u'MtGox', 'b', ax1_kw))}
                 ),
             # The second axis displays the lag reported by MtGox
             ('lag', {'title': u'', 'ylabel': u'MtGox Lag(s)', 'numpoints': 60,
