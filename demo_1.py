@@ -9,11 +9,12 @@ qt4reactor.install()
 
 import sys
 import numpy
+from decimal import Decimal
 from twisted.internet import reactor, task
 from matplotlib.ticker import ScalarFormatter
 
 # Own modules
-from btcx import btce, mtgox, cfgmanager
+from btcx import btce, mtgox, bitstamp, cfgmanager
 from simpleplot import SimplePlot
 import systray
 print("woof!")
@@ -34,16 +35,17 @@ class Demo(QG.QMainWindow):
         yl = u'%s/BTC' % currency
         ax1_kw = {'lw': 2, 'ls': 'steps'}
         self.plot = SimplePlot(self, lineconfig=( # A plot with two axes
-            # The first axis displays trades from MtGox and BTC-e
+            # The first axis displays trades from the exchanges
             ('trade', {'title': u'Trades', 'ylabel': yl,
                     'numpoints': 150, # Last 150 trades
                     'legend': {'loc': 'upper center',
-                               'bbox_to_anchor': (0.5, -0.05), 'ncol': 2},
+                               'bbox_to_anchor': (0.5, -0.05), 'ncol': 3},
                     'grid': True,
                     'ylim_extra': 1.0,
-                    # Blue and red lines, respectively.
+                    # Blue, red and green lines, respectively.
                     'line': (('mtgox', u'MtGox', 'b', ax1_kw),
-                             ('btce', u'BTC-e', 'r', ax1_kw))}
+                             ('btce', u'BTC-e', 'r', ax1_kw),
+                             ('bitstamp', u'Bitstamp', 'g', ax1_kw))}
                 ),
             # The second axis displays the lag reported by MtGox
             ('lag', {'title': u'', 'ylabel': u'MtGox Lag(s)', 'numpoints': 60,
@@ -68,8 +70,9 @@ class Demo(QG.QMainWindow):
         # Disable scientific notation.
         self.plot.ax['vol'].yaxis.set_major_formatter(ScalarFormatter(False))
 
-        # Keep the timestamp of the most recent trade in BTC-e.
+        # Keep the timestamp of the most recent trade in BTC-e and Bitstamp.
         self.last_btce_ts = float('-inf')
+        self.last_bitstamp_ts = float('-inf')
 
         self.setup_gui()
 
@@ -116,6 +119,20 @@ class Demo(QG.QMainWindow):
         self.last_btce_ts = data[0]['date']
         self.plot.update_line('trade', 'btce')
 
+    def bitstamp_trade(self, data):
+        for item in data:
+            #tid = item['tid']
+            timestamp = int(item['date'])
+            price = Decimal(item['price'])
+            amount = Decimal(item['amount'])
+            if timestamp <= self.last_bitstamp_ts:
+                break
+            print('bitstamp trade:', timestamp, price, amount)
+            self.plot.append_value(float(price), 'trade', 'bitstamp', False)
+        self.last_bitstamp_ts = int(data[0]['date'])
+        self.plot.update_line('trade', 'bitstamp')
+
+
     def mtgox_lag(self, lag):
         self.plot.append_value(float(lag), 'lag', 'mtgox')
 
@@ -152,6 +169,14 @@ def main(key, secret):
     btce_trade_pool = task.LoopingCall(lambda:
             btce_client.trades(currency=currency))
     btce_trade_pool.start(10) # x seconds
+
+    bitstamp_cli = bitstamp.create_client()
+    bitstamp_cli.evt.listen('trades', plot.bitstamp_trade)
+    bitstamp_cli.transactions(timedelta=60*60) # Trades from last hour.
+    # Get the last trades each x seconds.
+    bitstamp_trade_pool = task.LoopingCall(lambda:
+            bitstamp_cli.timedelta(60) if plot.last_bitstamp_ts else None)
+    bitstamp_trade_pool.start(10) # x seconds.
 
     print('Showing GUI..')
     plot.show()
