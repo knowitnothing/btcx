@@ -49,18 +49,22 @@ class TradeFetchStore(object):
                 (tid, timestamp, ttype, str(price), str(amount)))
 
 
-def main(key, secret):
+def main():
     currency = 'USD' # Changing this to 'EUR' should work just fine.
 
     table = "btc%s" % (currency.lower())
     db = sqlite3.connect('mtgox_trades.db')
     cursor = db.cursor()
+
     cursor.execute("""CREATE TABLE IF NOT EXISTS %s (
-            tid INTEGER PRIMARY KEY, timestamp INTEGER,
+            tid INTEGER PRIMARY KEY, timestamp TIMESTAMP,
             ttype TEXT, price TEXT, amount TEXT)""" % table)
+    cursor.execute("""
+            CREATE INDEX IF NOT EXISTS %s_ts ON %s (timestamp)
+            """ % (table, table))
     db.commit()
 
-    mtgox_client = mtgox.create_client(key, secret, currency)
+    mtgox_client = mtgox.create_client('', '', currency) # No key/secret.
     tradefetch = TradeFetchStore(db, table, mtgox_client)
     mtgox.start(mtgox_client)
 
@@ -68,7 +72,4 @@ def main(key, secret):
 
 
 if __name__ == "__main__":
-    print('Create or/and load a key/secret pair for MtGox.\n')
-    key, secret = cfgmanager.obtain_key_secret(sys.argv[1:])
-    if key:
-        main(key, secret)
+    main()
