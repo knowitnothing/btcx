@@ -58,7 +58,8 @@ class Bitstamp(object): # XXX Only public data for the moment.
     def transactions(self, timedelta=86400):
         """Obtain transactions for the last timedelta seconds."""
         self.call('api/transactions', lambda result, _:
-                self.evt.emit('trades', result), # XXX Format.
+                # XXX Format.
+                self.evt.emit('trades', result) if result else None,
                 timedelta=timedelta)
 
     def reserves(self):
