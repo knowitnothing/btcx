@@ -41,7 +41,7 @@ class Demo(QG.QMainWindow):
                     'legend': {'loc': 'upper center',
                                'bbox_to_anchor': (0.5, -0.05), 'ncol': 3},
                     'grid': True,
-                    'ylim_extra': 1.0,
+                    'ylim_extra': 0.3,
                     # Blue, red and green lines, respectively.
                     'line': (('mtgox', u'MtGox', 'b', ax1_kw),
                              ('btce', u'BTC-e', 'r', ax1_kw),
@@ -153,10 +153,11 @@ def main(key, secret):
             (mtgox_client.subscribe_type('lag'),
              mtgox_client.subscribe_type('ticker'),
              mtgox_client.subscribe_type('trades')))
-    # The first time a connection is established, load trades from the
-    # last hour.
+    # The first time a connection is established, load some of the
+    # last trades (it should be trades from 2 hours ago, but MtGox
+    # does not actually send all of it).
     mtgox_client.evt.listen_once('connected', lambda _:
-             mtgox_client.load_trades_since(hours_ago=1))
+             mtgox_client.load_trades_since(hours_ago=2))
     mtgox_client.evt.listen('trade_fetch', plot.mtgox_trade)
     mtgox_client.evt.listen('trade', plot.mtgox_trade)
     mtgox_client.evt.listen('lag', plot.mtgox_lag)
@@ -199,10 +200,14 @@ def main(key, secret):
 
 
 if __name__ == "__main__":
-    print('\nCreate or/and load a key/secret pair for MtGox to use '
-          'in this demo.\n')
-    key, secret = cfgmanager.obtain_key_secret(sys.argv[1:])
-    if key is None:
-        print("Warning: Continuing without a key/secret pair.")
-        key = secret = ''
-    main(key, secret)
+    # XXX
+    # Authentication is no longer needed given the current
+    # functionality.
+    #print('\nCreate or/and load a key/secret pair for MtGox to use '
+    #      'in this demo.\n')
+    #key, secret = cfgmanager.obtain_key_secret(sys.argv[1:])
+    #if key is None:
+    #    print("Warning: Continuing without a key/secret pair.")
+    #    key = secret = ''
+    #main(key, secret)
+    main('', '')
