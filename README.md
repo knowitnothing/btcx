@@ -11,11 +11,12 @@ Dependencies
 
 + This project relies on Twisted for proper network communication.
 The Autobahn library provides a WebSocket client for using the
-MtGox Streaming API. For other exchanges (currently this includes
-only BTC-e), the treq package is used in order to keep a clean
-interface to HTTP(S) requests.
+MtGox Streaming API. For other API calls through HTTP(S) (this includes
+fetching some public data from MtGox, and also the entire BTC-e and
+Bitstamp APIs), the treq package is used in order to keep a clean
+interface to the requests.
 
-+ Qt and Matplotlib are used for the GUI/plotting in the current demo.
++ Qt and Matplotlib are used for the GUI/plotting in the current demos.
 
 
 Demo
