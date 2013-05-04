@@ -41,9 +41,7 @@ def sf_stats_json(data):
     sf_daily_stats[dtime] = {'total': data['total']}
 
     for country, dlcount in data['countries']:
-        name = country.lower()
-        if name in (u'china', u'united states'):
-            sf_daily_stats[dtime][name] = dlcount
+        sf_daily_stats[dtime][country] = dlcount
 
 
     if not pending_calls[0]:
@@ -77,12 +75,12 @@ def ohlc_stats(start_date, end_date, dbname='mtgox_trades.db'):
 
 
 
-def do_the_plot(candle):
+def do_the_plot(candle, sf_top):
     fig = pylab.figure()
     ax = fig.add_subplot(111)
 
     dl_factor = 100 # Download counts will be divided by this amount
-    plot_sf_stats(ax, fig, factor=dl_factor)
+    plot_sf_stats(sf_top, ax, fig, factor=dl_factor)
     plot_candles(ax, candle)
     xlim = ax.get_xlim()
     ax.set_xlim(xlim[0] - 1, xlim[1] + 1)
@@ -105,19 +103,18 @@ def plot_candles(ax, candle):
     for o, h, l, c in candle:
         cs.append_candle(o, h, l, c)
 
-def plot_sf_stats(ax, fig, factor):
+def plot_sf_stats(top, ax, fig, factor):
     factor = float(factor)
 
     x = []
     total = []
-    china = []
-    us = []
+    other = [[] for _ in xrange(len(top))]
     for key in sorted(sf_daily_stats):
         val = sf_daily_stats[key]
         x.append(key)
         total.append(val['total'] / factor)
-        china.append(val['china'] / factor)
-        us.append(val['united states'] / factor)
+        for data, name in zip(other, top):
+            data.append(val[name] / factor)
 
     ax.xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d'))
     # Labels on mondays.
@@ -126,8 +123,8 @@ def plot_sf_stats(ax, fig, factor):
     #ax.set_ylabel(u'Download count (%g x)' % factor)
 
     ax.plot(x, total, label=u'Total DL')
-    ax.plot(x, china, label=u'China DL')
-    ax.plot(x, us, label=u'US DL')
+    for data, name in zip(other, top):
+        ax.plot(x, data, label=u'%s DL' % name)
 
     fig.autofmt_xdate()
 
@@ -139,8 +136,22 @@ if __name__ == "__main__":
     sf_stats(start_date, end_date)
     reactor.run()
 
+    # Find out the top two countries in terms of download count.
+    from collections import defaultdict
+    dl_country = defaultdict(int)
+    for _, v in sf_daily_stats.iteritems():
+        for country, dlcount in v.iteritems():
+            if country == 'total':
+                # Not really a country.
+                continue
+            dl_country[country] += dlcount
+    n = 2
+    top_n = sorted(((v, k) for k, v in dl_country.items()), reverse=True)[:n]
+    print top_n
+    top_n = [k for v, k in top_n]
+
     candle = ohlc_stats(start_date, end_date)
 
     # You might want to save sf_daily_stats
-    print sf_daily_stats
-    do_the_plot(candle)
+    #print sf_daily_stats
+    do_the_plot(candle, top_n)
