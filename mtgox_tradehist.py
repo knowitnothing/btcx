@@ -61,8 +61,11 @@ class TradeFetchStore(object):
 
         if self.verbose > 5:
             print("trade", tid, timestamp, ttype, price, amount)
-        self.cursor.execute("INSERT INTO %s VALUES (?, ?, ?, ?, ?)"%self.table,
-                (tid, timestamp, ttype, str(price), str(amount)))
+        self.store_trade(tid, timestamp, ttype, str(price), str(amount))
+
+    def store_trade(self, tid, timestamp, ttype, price, amount):
+        query = "INSERT OR REPLACE INTO %s VALUES (?, ?, ?, ?, ?)" % self.table
+        self.cursor.execute(query, (tid, timestamp, ttype, price, amount))
 
 
 
