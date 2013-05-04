@@ -1,4 +1,5 @@
 dep/*
 *.pyc
 *.swp
+*.db
 btcx.cfg
