@@ -78,7 +78,7 @@ class Candlestick(QG.QWidget):
             o, c = ll.get_ydata()[1], lu.get_ydata()[0]
             if b.get_facecolor() == self._filled_rgba:
                 o, c = c, o
-            return 'O: %.4f  H: %.4f %s-\nL: %.4f  C: %.4f  V: %10.4f' % (
+            return 'O: %.4f H: %.4f %s-\nL: %.4f C: %.4f V: %.4f' % (
                     o, high, ' ' * 20, low, c, volume)
         else:
             return ''
