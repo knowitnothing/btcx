@@ -483,7 +483,8 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
 
         # idkey expires after 24 hours, so refreshing each 8 hours
         # looks good enough.
-        self.idkey_refresh_task.start(60 * 60 * 8)
+        if self.key:
+            self.idkey_refresh_task.start(60 * 60 * 8)
 
 
     # Helpers
