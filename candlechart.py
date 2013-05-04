@@ -1,11 +1,12 @@
 import pylab
 import PyQt4.QtGui as QG
 import PyQt4.QtCore as QC
+from matplotlib import patches, lines
+from matplotlib.figure import Figure
+from matplotlib.colors import ColorConverter
 from matplotlib.backends.backend_qt4agg import (
         FigureCanvasQTAgg as FigureCanvas,
         NavigationToolbar2QTAgg as NavigationToolbar)
-from matplotlib.figure import Figure
-from matplotlib import patches, lines
 from collections import deque
 
 
@@ -17,6 +18,8 @@ class Candlestick(QG.QWidget):
         self.config = {'empty': candle_kwargs.get('empty', 'none'),
                        'filled': candle_kwargs.get('filled', 'k'),
                        'edgecolor': candle_kwargs.get('edgecolor', 'k')}
+
+        self._filled_rgba = ColorConverter().to_rgba(self.config['filled'])
 
         self.navbar = True
         self.max_candles = max_candles
@@ -45,9 +48,12 @@ class Candlestick(QG.QWidget):
         # XXX Make the following settings configurable.
         self.vol = self.ax_vol.bar(range(-1, self.max_candles + 1),
                 [0] + ([0] * self.max_candles) + [0], align='center',
-                width=0.4, color='orange', alpha=0.5)
+                width=0.7, color='orange', alpha=0.5)
         self.ax.set_xlim(-1, self.max_candles + 1)
         self.ax_vol.set_ylim(0, 1)
+
+        self.ax.format_coord = self._format_coord
+        self.ax_vol.format_coord = self._format_coord
 
     def setup_gui(self):
         layout = QG.QVBoxLayout()
@@ -59,6 +65,24 @@ class Candlestick(QG.QWidget):
         self.setLayout(layout)
 
 
+    def _format_coord(self, x, y):
+        # This function is called by Matplotlib in order to
+        # present information regarding the current position of
+        # the mouse's cursor.
+        x, y = int(round(x)), int(round(y))
+        if 0 <= x < self.x:
+            # self.candle[i] at arbitrary i is O(n), take care.
+            lu, b, ll, volume = self.candle[x]
+            low = ll.get_ydata()[0]
+            high = lu.get_ydata()[1]
+            o, c = ll.get_ydata()[1], lu.get_ydata()[0]
+            if b.get_facecolor() == self._filled_rgba:
+                o, c = c, o
+            return 'O: %.4f  H: %.4f %s-\nL: %.4f  C: %.4f  V: %10.4f' % (
+                    o, high, ' ' * 20, low, c, volume)
+        else:
+            return ''
+
     def _make_candle(self, x, o, h, l, c):
         empty = self.config['empty']
         filled = self.config['filled']
@@ -68,7 +92,7 @@ class Candlestick(QG.QWidget):
         upper_val = max(o, c)
 
         body_color = empty if c > o else filled
-        body_width = 0.42
+        body_width = 0.72
         body_height = abs(o - c)
         body_options = {'width': body_width, 'edgecolor': edgecolor,
                         'height': body_height, 'facecolor': body_color,
