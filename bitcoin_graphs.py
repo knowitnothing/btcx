@@ -81,12 +81,15 @@ def do_the_plot(candle):
     fig = pylab.figure()
     ax = fig.add_subplot(111)
 
-    plot_sf_stats(ax, fig, factor=100)
+    dl_factor = 100 # Download counts will be divided by this amount
+    plot_sf_stats(ax, fig, factor=dl_factor)
     plot_candles(ax, candle)
 
     ax.grid()
 
-    fig.suptitle(u'Bitcoin-QT download stats mixed with MtGox USD price')
+    fig.suptitle(
+            u'Bitcoin-QT download stats (%g x) mixed with MtGox USD price' %
+            dl_factor)
 
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.85, box.height])
