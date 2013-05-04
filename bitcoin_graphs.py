@@ -84,6 +84,8 @@ def do_the_plot(candle):
     dl_factor = 100 # Download counts will be divided by this amount
     plot_sf_stats(ax, fig, factor=dl_factor)
     plot_candles(ax, candle)
+    xlim = ax.get_xlim()
+    ax.set_xlim(xlim[0] - 1, xlim[1] + 1)
 
     ax.grid()
 
