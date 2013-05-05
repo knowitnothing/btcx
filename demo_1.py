@@ -8,15 +8,14 @@ import qt4reactor
 qt4reactor.install()
 
 import sys
-import numpy
 from decimal import Decimal
 from twisted.internet import reactor, task
 from matplotlib.ticker import ScalarFormatter
 
 # Own modules
-from btcx import btce, mtgox, bitstamp, cfgmanager
-from simpleplot import SimplePlot
 import systray
+from btcx import btce, mtgox, bitstamp, btcchina
+from simpleplot import SimplePlot
 print("woof!")
 
 
@@ -39,11 +38,12 @@ class Demo(QG.QMainWindow):
             ('trade', {'title': u'Trades', 'ylabel': yl,
                     'numpoints': 150, # Last 150 trades
                     'legend': {'loc': 'upper center',
-                               'bbox_to_anchor': (0.5, -0.05), 'ncol': 3},
+                               'bbox_to_anchor': (0.5, -0.05), 'ncol': 4},
                     'grid': True,
                     'ylim_extra': 0.3,
-                    # Blue, red and green lines, respectively.
-                    'line': (('bitstamp', u'Bitstamp', 'g', ax1_kw),
+                    # Blue, red, green and black lines, respectively.
+                    'line': (('btcchina', u'BTCChina', 'k', ax1_kw),
+                             ('bitstamp', u'Bitstamp', 'g', ax1_kw),
                              ('btce', u'BTC-e', 'r', ax1_kw),
                              ('mtgox', u'MtGox', 'b', ax1_kw))}
                 ),
@@ -70,9 +70,10 @@ class Demo(QG.QMainWindow):
         # Disable scientific notation.
         self.plot.ax['vol'].yaxis.set_major_formatter(ScalarFormatter(False))
 
-        # Keep the timestamp of the most recent trade in BTC-e and Bitstamp.
+        # Keep the timestamp of the most recent trade in the exchances.
         self.last_btce_ts = float('-inf')
         self.last_bitstamp_ts = float('-inf')
+        self.last_btcchina_ts = float('-inf')
 
         self.setup_gui()
 
@@ -132,6 +133,21 @@ class Demo(QG.QMainWindow):
         self.last_bitstamp_ts = int(data[0]['date'])
         self.plot.update_line('trade', 'bitstamp')
 
+    def btcchina_trade(self, data):
+        cnyusd = Decimal('0.1625') # XXX Retrieve the updated value.
+        for item in data:
+            #tid = item['tid']
+            timestamp = int(item['date'])
+            price = Decimal(item['price'])
+            amount = Decimal(item['amount'])
+            if timestamp <= self.last_btcchina_ts:
+                break
+            print("btcchina trade:", timestamp, '%g' % price, '%g' % amount)
+            self.plot.append_value(float(price * cnyusd),
+                    'trade', 'btcchina', False)
+        self.last_btcchina_ts = int(data[-1]['date'])
+        self.plot.update_line('trade', 'btcchina')
+
 
     def mtgox_lag(self, lag):
         self.plot.append_value(float(lag), 'lag', 'mtgox')
@@ -167,18 +183,25 @@ def main(key, secret):
     btce_client = btce.create_client('', '') # No key/secret.
     btce_client.evt.listen('trades', plot.btce_trade)
     # Get the last trades each x seconds.
-    btce_trade_pool = task.LoopingCall(lambda:
-            btce_client.trades(currency=currency))
-    btce_trade_pool.start(10) # x seconds
+    btce_pool = task.LoopingCall(lambda: btce_client.trades(currency=currency))
+    btce_pool.start(10) # x seconds
 
     bitstamp_cli = bitstamp.create_client()
     bitstamp_cli.evt.listen('trades', plot.bitstamp_trade)
     bitstamp_cli.transactions(timedelta=60*60) # Trades from last hour.
     # Get the last trades each x seconds.
-    bitstamp_trade_pool = task.LoopingCall(lambda:
+    bitstamp_pool = task.LoopingCall(lambda:
             bitstamp_cli.transactions(timedelta=60) if
                 plot.last_bitstamp_ts > 0 else None)
-    bitstamp_trade_pool.start(10) # x seconds.
+    bitstamp_pool.start(10) # x seconds.
+
+    btcchina_cli = btcchina.create_client()
+    btcchina_cli.evt.listen('trades', plot.btcchina_trade)
+    btcchina_cli.trades()
+    btcchina_pool = task.LoopingCall(lambda:
+            btcchina_cli.trades() if plot.last_btcchina_ts > 0 else None)
+    btcchina_pool.start(10)
+
 
     print('Showing GUI..')
     plot.show()
@@ -188,8 +211,9 @@ def main(key, secret):
         print("Finishing..")
         if mtgox_client.connected:
             mtgox_client.sendClose()
-        if btce_trade_pool.running:
-            btce_trade_pool.stop()
+        for task in (btce_pool, bitstamp_pool, btcchina_pool):
+            if task.running:
+                task.stop()
         if reactor.running:
             reactor.stop()
             print("Reactor stopped")
@@ -200,14 +224,4 @@ def main(key, secret):
 
 
 if __name__ == "__main__":
-    # XXX
-    # Authentication is no longer needed given the current
-    # functionality.
-    #print('\nCreate or/and load a key/secret pair for MtGox to use '
-    #      'in this demo.\n')
-    #key, secret = cfgmanager.obtain_key_secret(sys.argv[1:])
-    #if key is None:
-    #    print("Warning: Continuing without a key/secret pair.")
-    #    key = secret = ''
-    #main(key, secret)
     main('', '')
