@@ -187,6 +187,19 @@ class MtgoxProtocol(WebSocketClientProtocol):
             self.coin, self.currency),
             version=2, **params)
 
+    def depth_fetch(self):
+        """Request data regarding recent market depth."""
+        return self.http_public_call('%s%s/money/depth/fetch' % (
+            self.coin, self.currency), version=2)
+
+    def depth_full(self):
+        """
+        Request complete data regarding market depth.
+        Limit yourself to 5 requests per hour for this information (from docs).
+        """
+        return self.http_public_call('%s%s/money/depth/full' % (
+            self.coin, self.currency), version=2)
+
 
     # Methods called to handle MtGox responses.
 
@@ -248,13 +261,25 @@ class MtgoxProtocol(WebSocketClientProtocol):
             rights = result['Rights']
             self.evt.emit(name, (trade_fee, rights))
         elif name.endswith('money/trades/fetch'):
-            coin_currency = (name[:name.find('/', 1)], )
+            # Result from load_trades_since method.
             for trade in result or []:
                 trade = self._extract_trade(trade)
                 if trade[0] is None:
                     continue
                 self.evt.emit('trade_fetch', trade)
             self.evt.emit('trade_fetch', (None, ) * 6) # end
+        elif name.endswith('money/depth/fetch') or name.endswith(
+                'money/depth/full'):
+            # Result from depth_fetch or depth_full method.
+            factor = CURRENCY_FACTOR.get(self.currency, CURRENCY_DEFAULT_FACTOR)
+            coin = CURRENCY_FACTOR['BTC']
+            for typ in ('bid', 'ask'):
+                entry = '%ss' % typ
+                for order in result[entry]:
+                    price = Decimal(order['price_int']) / factor
+                    amount = Decimal(order['amount_int']) / coin
+                    self.evt.emit('order_fetch', (typ, price, amount))
+            self.evt.emit('order_fetch', (None, None, None))
         else:
             rtype = name.replace('/', '_')
             print("Emitting result event for %s" % rtype)
@@ -534,7 +559,7 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
 
 
 
-def create_client(key, secret, currency="USD", secure=True,
+def create_client(key='', secret='', currency="USD", secure=True,
         addr="websocket.mtgox.com", http_addr="data.mtgox.com/api",
         debug=False, extradebug=False):
 
