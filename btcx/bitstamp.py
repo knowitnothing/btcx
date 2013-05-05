@@ -3,46 +3,22 @@
 from __future__ import print_function
 
 import sys
-import time
-from urllib import urlencode
 from decimal import Decimal
-
-import treq
 from twisted.python import log
-from twisted.internet import reactor, task
-from twisted.web.http_headers import Headers
 
-from common import USER_AGENT, ExchangeEvent
+from common import ExchangeEvent
+from http import HTTPAPI
 
 
-class Bitstamp(object): # XXX Only public data for the moment.
+class Bitstamp(HTTPAPI): # XXX Only public data for the moment.
 
     def __init__(self, key, secret, host):
+        super(Bitstamp, self).__init__(host)
         self.evt = ExchangeEvent(eventprefix="//bitstamp")
-        self.host = host
-
-        # Ideally the nonce should be synced between various clients.
-        self.nonce = int(time.time())
 
 
-    def call(self, urlpart, cb, **kwargs):
-        headers = Headers({"User-Agent": [USER_AGENT]})
-        d = treq.get('%s/%s' % (self.host, urlpart),
-                params=kwargs, headers=headers)
-        d.addCallback(lambda response: self._decode_or_error(
-            response, cb, urlpart))
+    # Public API
 
-    def _decode_or_error(self, response, cb, *args):
-        d = treq.json_content(response)
-        d.addCallback(cb, *args)
-        errcb = lambda err, *args: print("Error when calling %s. %s" % (
-            ' '.join(args), err.getBriefTraceback()))
-        d.addErrback(errcb, *args)
-
-
-    # Bitstamp API
-
-    # Public
     def ticker(self):
         # last (last BTC price),
         # high (day), low (day), volume (day),
@@ -84,8 +60,3 @@ def create_client(key='', secret='', addr='https://www.bitstamp.net',
         log.startLogging(sys.stdout)
 
     return Bitstamp(key, secret, addr)
-
-def start(*args):
-    # This intentionally does nothing. Consider it as a uniformity
-    # layer among the different APIs.
-    pass

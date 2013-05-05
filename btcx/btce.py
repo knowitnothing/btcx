@@ -15,11 +15,12 @@ from twisted.internet import reactor, task
 from twisted.web.http_headers import Headers
 
 from common import USER_AGENT, ExchangeEvent
+from http import HTTPAPI
 
+class BTCe(HTTPAPI):
 
-class BTCe(object):
-
-    def __init__(self, key, secret, host='https://btc-e.com'):
+    def __init__(self, key, secret, host):
+        super(BTCe, self).__init__(host)
         self.evt = ExchangeEvent(eventprefix="//btce")
         self.key = key.encode('ascii')
         self.secret = secret
@@ -50,23 +51,8 @@ class BTCe(object):
                 "User-Agent": [USER_AGENT],
         })
         d = treq.post('%s/tapi' % self.host, data=call_p, headers=headers)
-        d.addCallback(lambda response: self._decode_or_error(
+        d.addCallback(lambda response: self.decode_or_error(
             response, cb, method, kwargs))
-
-    def call(self, urlpart, cb):
-        headers = Headers({"User-Agent": [USER_AGENT]})
-        d = treq.get('%s/%s' % (self.host, urlpart), headers=headers)
-        d.addCallback(lambda response: self._decode_or_error(
-            response, cb, urlpart))
-
-
-    def _decode_or_error(self, response, cb, *args):
-        d = treq.json_content(response)
-        d.addCallback(cb, *args)
-        errcb = lambda err, *args: print("Error when calling %s: %s" % (
-            ' '.join(args), err.getErrorMessage()))
-        d.addErrback(errcb, *args)
-
 
 
     # BTC-e API
@@ -90,7 +76,7 @@ class BTCe(object):
         self.call('api/2/%s_%s/depth' % (coin, currency),
                 lambda data, _: self.evt.emit('depth', data))
 
-    # Private
+    # Private (these retrieve data only about the own account)
     def get_info(self):
         self.signed_call('getInfo', self._generic_cb('info'))
 
@@ -103,15 +89,11 @@ class BTCe(object):
         self.signed_call('TransHistory', self._generic_cb('trans_hist'),
                 **params)
 
-    def trade_history(self, from_=0, count=1000, from_id=0, end_id=None,
-            order=None, since=0, end=None, pair=None):
-        params = {'from': from_, 'count': count, 'from_id': from_id,
-                  'since': 0}
-        if end_id: params['end_id'] = end_id
-        if end: params['end'] = end
-        if order: params['order'] = order
-        if pair: params['pair'] = pair
-        self.signed_call('TradeHistory', self._generic_cb('trade_hist'),
+    def trade_history(self, **kwargs):
+        # Accepted keywords: from, count, from_id, end_id, order, since,
+        #                    end, pair
+        params = dict((k.rstrip('_'), v) for k, v in kwargs.iteritems())
+        self.signed_call('TradeHistory', self._generic_cb('trade_fetch'),
                 **params)
 
     def order_list(self, from_=0, count=1000, from_id=0, end_id=None,
