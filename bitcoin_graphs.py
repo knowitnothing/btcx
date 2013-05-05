@@ -62,7 +62,11 @@ def ohlc_stats(start_date, end_date, dbname='mtgox_trades.db'):
         end = calendar.timegm(start_date.utctimetuple())
 
         result = db.execute(query, (start, end))
-        first = float(result.fetchone()[0])
+        first = result.fetchone()
+        if first is None:
+            print "Skipping", start_date
+            continue
+        first = float(first[0])
         o, h, l, c = first, first, first, first
         for trade in result:
             price = float(trade[0])
@@ -132,6 +136,7 @@ def plot_sf_stats(top, ax, fig, factor):
 if __name__ == "__main__":
     start_date = datetime(year=2013, month=2, day=1)
     end_date = datetime.fromordinal(date.today().toordinal())
+    end_date += timedelta(days=1)
 
     sf_stats(start_date, end_date)
     reactor.run()
