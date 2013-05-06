@@ -11,14 +11,14 @@ from matplotlib.ticker import MaxNLocator
 
 
 class PlotDepth(QG.QWidget):
-    def __init__(self, parent=None, timeout=1500):
+    def __init__(self, parent=None, timeout=2000):
         QG.QWidget.__init__(self, parent)
 
         self._depth = sqlite3.connect(':memory:')
         self._depth.execute("""CREATE TABLE
-                bid (price REAL PRIMARY KEY, amount TEXT)""")
+                bid (price INTEGER PRIMARY KEY, amount REAL)""")
         self._depth.execute("""CREATE TABLE
-                ask (price REAL PRIMARY KEY, amount TEXT)""")
+                ask (price INTEGER PRIMARY KEY, amount REAL)""")
 
         self.fig = Figure(figsize=(8, 4))
         self.canvas = FigureCanvas(self.fig)
@@ -35,15 +35,20 @@ class PlotDepth(QG.QWidget):
         self.bid = self.ax.plot([], [], 'g', lw=3)[0]
         self.ask = self.ax.plot([], [], 'r', lw=3)[0]
 
-        # Limit visual display to n points.
-        self.nbin = 100
         self._bidfill = None
         self._askfill = None
 
+        # Display only values +/- from price_threshold
         self.price_threshold = 10
+        # Multiply price by price_factor and store as integer.
+        self.price_factor = 100
 
+        # Number of updates pending.
         self.need_replot = 0
-        self.replot_after = 20
+        # Replot before timeout only if there are more than x
+        # updates pending.
+        self.replot_after = 30
+
         self.timer = QC.QTimer()
         self.timer.timeout.connect(self.replot)
         self.timer.start(timeout) # x ms.
@@ -62,7 +67,8 @@ class PlotDepth(QG.QWidget):
             DELETE FROM bid WHERE price IN (
                 SELECT a.price FROM bid a
                 WHERE ((SELECT b.price FROM bid b ORDER BY b.price DESC
-                        LIMIT 1) - a.price) > ?)""", (1.5*self.price_threshold,
+                        LIMIT 1) - a.price) > ?)""", (
+                            self.price_factor * self.price_threshold,
                             )).rowcount
         print("  Bids removed:", dnum)
 
@@ -71,7 +77,8 @@ class PlotDepth(QG.QWidget):
             DELETE FROM ask WHERE price IN (
                 SELECT a.price FROM ask a
                 WHERE (a.price - (SELECT b.price FROM ask b ORDER BY b.price
-                        ASC LIMIT 1)) > ?)""", (1.5*self.price_threshold,
+                        ASC LIMIT 1)) > ?)""", (
+                            self.price_factor * self.price_threshold,
                             )).rowcount
         print("  Asks removed:", dnum)
 
@@ -84,6 +91,9 @@ class PlotDepth(QG.QWidget):
                     SELECT a.price FROM ask a ORDER BY a.price ASC
                     LIMIT 1))""").rowcount
         print("  Old bids removed:", dnum)
+        if dnum:
+            self.need_replot += 1
+            self.replot()
 
         self._depth.execute("VACUUM")
 
@@ -98,32 +108,33 @@ class PlotDepth(QG.QWidget):
         now = time.time()
         # Grab up-to-date bid data.
         result = self._depth.execute("""
-                SELECT a.price, CAST(sum(c.amount) AS REAL)
+                SELECT a.price, a.amount, SUM(c.amount)
                 FROM bid a LEFT JOIN bid c ON (c.price >= a.price)
                 WHERE ((SELECT b.price FROM bid b ORDER BY b.price
                         DESC LIMIT 1) - a.price) <= ?
-                GROUP BY a.price ORDER BY a.price DESC LIMIT ?""",
-                (self.price_threshold, self.nbin))
+                GROUP BY a.price, a.amount ORDER BY a.price DESC""",
+                (self.price_factor * self.price_threshold, ))
         data_bid = numpy.array(result.fetchall())
 
         # Grab up-to-date ask data.
         result = self._depth.execute("""
-                SELECT a.price, CAST(SUM(c.amount) AS REAL)
+                SELECT a.price, a.amount, SUM(c.amount)
                 FROM ask a LEFT JOIN ask c ON (c.price <= a.price)
                 WHERE (a.price - (SELECT b.price
                         FROM ask b ORDER BY b.price ASC LIMIT 1)) <= ?
-                GROUP BY a.price ORDER BY a.price ASC LIMIT ?""",
-                (self.price_threshold, self.nbin))
+                GROUP BY a.price, a.amount ORDER BY a.price ASC""",
+                (self.price_factor * self.price_threshold, ))
         data_ask = numpy.array(result.fetchall())
+        print("took", time.time() - now)
 
         if not len(data_bid) or not len(data_ask):
             return
 
-        x_bid_data = data_bid[:,0]
-        y_bid_data = data_bid[:,1]
+        x_bid_data = data_bid[:,0].astype(numpy.float32) / self.price_factor
+        y_bid_data = data_bid[:,2]
 
-        x_ask_data = data_ask[:,0]
-        y_ask_data = data_ask[:,1]
+        x_ask_data = data_ask[:,0].astype(numpy.float32) / self.price_factor
+        y_ask_data = data_ask[:,2]
 
         # Update lines.
         self.bid.set_data(x_bid_data[::-1], y_bid_data[::-1])
@@ -144,7 +155,6 @@ class PlotDepth(QG.QWidget):
                 color='green', alpha=0.5)
         self._askfill = ax.fill_between(x_ask_data, y_min, y_ask_data,
                 color='red', alpha=0.5)
-        print("took", time.time() - now)
 
 
         # Redraw.
@@ -152,12 +162,13 @@ class PlotDepth(QG.QWidget):
 
 
     def new_data(self, typ, price, amount_now):
+        price = int(price * self.price_factor)
         if str(amount_now) != '0':
             self._depth.execute("INSERT OR REPLACE INTO %s VALUES (?, ?)" % typ,
-                    (float(price), float(amount_now)))
+                    (price, float(amount_now)))
         else:
             self._depth.execute("DELETE FROM %s WHERE price = ?" % typ,
-                    (float(price), ))
+                    (price, ))
 
         self.need_replot += 1
         if self.need_replot > self.replot_after:
