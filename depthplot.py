@@ -38,6 +38,8 @@ class PlotDepth(QG.QWidget):
         # Limit visual display to n points.
         self.nbin = 100
 
+        self.price_threshold = 10
+
         self.need_replot = 0
         self.replot_after = 20
         self.timer = QC.QTimer()
@@ -47,38 +49,28 @@ class PlotDepth(QG.QWidget):
         self.timer_clean = QC.QTimer()
         self.timer_clean.timeout.connect(self._clean_db)
         # Remove unused data from in-memory database each n seconds.
-        self.timer_clean.start(120 * 1000)
+        self.timer_clean.start(30 * 1000)
 
 
     def _clean_db(self):
         print("Cleaning database..")
 
         # Clean bids.
-        nrow = self._depth.execute("SELECT COUNT(*) FROM bid").fetchone()[0]
-        print("  ", nrow, "bid")
-        if nrow > self.nbin:
-            print("  Rows to remove from bids: %d" % (nrow - self.nbin))
-            self._depth.execute("""
-                DELETE FROM bid WHERE price IN (
-                    SELECT price FROM bid ORDER BY price ASC
-                    LIMIT ?)""", (nrow - self.nbin, ))
-        else:
-            print("  'bids' is clean")
+        self._depth.execute("""
+            DELETE FROM bid WHERE price IN (
+                SELECT a.price FROM bid a
+                WHERE ((SELECT b.price FROM bid b ORDER BY b.price DESC
+                        LIMIT 1) - a.price) > ?)""", (self.price_threshold, ))
 
         # Clean asks.
-        nrow = self._depth.execute("SELECT COUNT(*) FROM ask").fetchone()[0]
-        print("  ", nrow, "ask")
-        if nrow > self.nbin:
-            print("  Rows to remove from asks: %d" % (nrow - self.nbin))
-            self._depth.execute("""
-                DELETE FROM ask WHERE price IN (
-                        SELECT price FROM ask ORDER BY price DESC
-                        LIMIT ?)""", (nrow - self.nbin, ))
-        else:
-            print("  'asks' is clean")
+        self._depth.execute("""
+            DELETE FROM ask WHERE price IN (
+                SELECT a.price FROM ask a
+                WHERE (a.price - (SELECT b.price FROM ask b ORDER BY b.price
+                        ASC LIMIT 1)) > ?)""", (self.price_threshold, ))
 
 
-    def replot(self, threshold=10):
+    def replot(self):
         # If you are calling this function, make sure you meant to do it.
 
         if not self.need_replot:
@@ -88,37 +80,32 @@ class PlotDepth(QG.QWidget):
         now = time.time()
         # Grab up-to-date bid data.
         result = self._depth.execute("""
-                SELECT a.price, CAST(sum(b.amount) AS REAL)
-                FROM bid a LEFT JOIN bid b ON (b.price >= a.price)
+                SELECT a.price, CAST(sum(c.amount) AS REAL)
+                FROM bid a LEFT JOIN bid c ON (c.price >= a.price)
+                WHERE ((SELECT b.price FROM bid b ORDER BY b.price
+                        DESC LIMIT 1) - a.price) <= ?
                 GROUP BY a.price ORDER BY a.price DESC LIMIT ?""",
-                (self.nbin, ))
+                (self.price_threshold, self.nbin))
         data_bid = numpy.array(result.fetchall())
 
         # Grab up-to-date ask data.
         result = self._depth.execute("""
-                SELECT a.price, CAST(sum(b.amount) AS REAL)
-                FROM ask a LEFT JOIN ask b on (b.price <= a.price)
+                SELECT a.price, CAST(SUM(c.amount) AS REAL)
+                FROM ask a LEFT JOIN ask c ON (c.price <= a.price)
+                WHERE (a.price - (SELECT b.price
+                        FROM ask b ORDER BY b.price ASC LIMIT 1)) <= ?
                 GROUP BY a.price ORDER BY a.price ASC LIMIT ?""",
-                (self.nbin, ))
+                (self.price_threshold, self.nbin))
         data_ask = numpy.array(result.fetchall())
 
         if not len(data_bid) or not len(data_ask):
             return
 
-        # Limit data to be displayed so "weird" things like
-        # bid at 10 dollars when the current price is 110 dollars
-        # is not displayed.
-        if len(data_ask) < self.nbin/10 or len(data_bid) < self.nbin/10:
-            # Except if there are too few data points.
-            threshold = float('inf')
-        x_bid = (data_bid[:,0][0] - data_bid[:,0]) < threshold
-        x_ask = (data_ask[:,0] - data_ask[:,0][0]) < threshold
+        x_bid_data = data_bid[:,0]
+        y_bid_data = data_bid[:,1]
 
-        x_bid_data = data_bid[:,0][x_bid]
-        y_bid_data = data_bid[:,1][x_bid]
-
-        x_ask_data = data_ask[:,0][x_ask]
-        y_ask_data = data_ask[:,1][x_ask]
+        x_ask_data = data_ask[:,0]
+        y_ask_data = data_ask[:,1]
 
         # Update lines.
         self.bid.set_data(x_bid_data[::-1], y_bid_data[::-1])
