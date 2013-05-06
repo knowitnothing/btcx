@@ -83,7 +83,15 @@ def main(key, secret):
     # USD, AUD, CAD, CHF, CNY, DKK, EUR, GBP, HKD, JPY, NZD, PLN, RUB, SEK,
     # SGD, THB, NOK, CZK
     currency = 'USD'
+
+    main = QG.QMainWindow()
+    w = QG.QWidget()
     plot = PlotDepth()
+    l = QG.QVBoxLayout()
+    l.addWidget(plot)
+    w.setLayout(l)
+    main.setCentralWidget(w)
+
     demo = Demo(plot, currency)
 
     cli = mtgox.create_client(key, secret, currency)
@@ -104,8 +112,8 @@ def main(key, secret):
             cli.sendClose()
         reactor.stop()
 
-    plot.show()
-    plot.raise_()
+    main.show()
+    main.raise_()
     reactor.runReturn()
     app.lastWindowClosed.connect(finish)
     app.exec_()
