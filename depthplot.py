@@ -20,7 +20,7 @@ class PlotDepth(QG.QWidget):
         self._depth.execute("""CREATE TABLE
                 ask (price REAL PRIMARY KEY, amount TEXT)""")
 
-        self.fig = Figure()
+        self.fig = Figure(figsize=(8, 4))
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self)
 
@@ -37,6 +37,8 @@ class PlotDepth(QG.QWidget):
 
         # Limit visual display to n points.
         self.nbin = 100
+        self._bidfill = None
+        self._askfill = None
 
         self.price_threshold = 10
 
@@ -68,6 +70,8 @@ class PlotDepth(QG.QWidget):
                 SELECT a.price FROM ask a
                 WHERE (a.price - (SELECT b.price FROM ask b ORDER BY b.price
                         ASC LIMIT 1)) > ?)""", (self.price_threshold, ))
+
+        self._depth.execute("VACUUM")
 
 
     def replot(self):
@@ -111,8 +115,6 @@ class PlotDepth(QG.QWidget):
         self.bid.set_data(x_bid_data[::-1], y_bid_data[::-1])
         self.ask.set_data(x_ask_data, y_ask_data)
 
-        print("took", time.time() - now)
-
         # Adjust axes.
         ax = self.ax
         ax.set_xlim(x_bid_data[-1], x_ask_data[-1])
@@ -120,6 +122,16 @@ class PlotDepth(QG.QWidget):
         ##y_min = -(y_max * 0.01)
         y_min = min(y_bid_data[0], y_ask_data[0])
         ax.set_ylim(y_min, y_max)
+
+        # Fill below the curves.
+        if self._bidfill: self._bidfill.remove()
+        if self._askfill: self._askfill.remove()
+        self._bidfill = ax.fill_between(x_bid_data, y_min, y_bid_data,
+                color='green', alpha=0.5)
+        self._askfill = ax.fill_between(x_ask_data, y_min, y_ask_data,
+                color='red', alpha=0.5)
+        print("took", time.time() - now)
+
 
         # Redraw.
         self.canvas.draw_idle()
