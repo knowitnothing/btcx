@@ -11,7 +11,7 @@ from matplotlib.ticker import MaxNLocator
 
 
 class PlotDepth(QG.QWidget):
-    def __init__(self, parent=None, timeout=2000):
+    def __init__(self, parent=None, axconf=None, timeout=2000):
         QG.QWidget.__init__(self, parent)
 
         self._depth = sqlite3.connect(':memory:')
@@ -20,7 +20,7 @@ class PlotDepth(QG.QWidget):
         self._depth.execute("""CREATE TABLE
                 ask (price INTEGER PRIMARY KEY, amount REAL)""")
 
-        self.fig = Figure(figsize=(8, 4))
+        self.fig = Figure(figsize=(8, 3))
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self)
 
@@ -29,7 +29,10 @@ class PlotDepth(QG.QWidget):
         layout.addWidget(self.canvas)
         self.setLayout(layout)
 
-        self.ax = self.fig.add_subplot(111)
+        if axconf:
+            self.ax = self.fig.add_axes(axconf)
+        else:
+            self.ax = self.fig.add_subplot(111)
         self.ax.xaxis.set_major_locator(MaxNLocator(9))
 
         self.bid = self.ax.plot([], [], 'g', lw=3)[0]

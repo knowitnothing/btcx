@@ -43,7 +43,6 @@ class Demo(object):
 
         plot.ax.set_xlabel(self.currency)
         plot.ax.set_ylabel(u'BTC')
-        plot.ax.set_title(u'MtGox Depth Market')
 
         self.own_order = {}
         self.ask, self.bid = None, None
@@ -86,10 +85,11 @@ def main(key, secret):
 
     main = QG.QMainWindow()
     w = QG.QWidget()
-    plot = PlotDepth()
+    plot = PlotDepth(axconf=[0.1, 0.15, 0.87, 0.81])
     l = QG.QVBoxLayout()
     l.addWidget(plot)
     w.setLayout(l)
+    main.setWindowTitle(u'MtGox Depth Market')
     main.setCentralWidget(w)
 
     demo = Demo(plot, currency)
