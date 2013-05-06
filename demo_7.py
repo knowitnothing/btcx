@@ -11,29 +11,10 @@ qt4reactor.install()
 from twisted.internet import reactor
 
 # Own modules
+from coe import CallOnEvent
 from btcx import mtgox, cfgmanager
 from depthplot import PlotDepth
 print("woof!")
-
-
-class CallOnEvent(object):
-    def __init__(self, client):
-        self.client = client
-
-    def call(self, func, *args, **kwargs):
-        event = kwargs.get('on_event', 'connected')
-        once = kwargs.get('once', False)
-
-        if once:
-            listen = self.client.evt.listen_once
-        else:
-            listen = self.client.evt.listen
-
-        listen(event, lambda ignored: self._call(event, func, args))
-
-    def _call(self, event, func, args):
-        print("Calling %s%s due to event %s" % (func, args, event))
-        getattr(self.client, func)(*args)
 
 
 class Demo(object):
