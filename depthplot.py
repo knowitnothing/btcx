@@ -42,7 +42,7 @@ class PlotDepth(QG.QWidget):
         self._askfill = None
 
         # Display only values +/- from price_threshold
-        self.price_threshold = 10
+        self.price_threshold = 7
         # Multiply price by price_factor and store as integer.
         self.price_factor = 100
 
@@ -56,6 +56,7 @@ class PlotDepth(QG.QWidget):
         self.timer.timeout.connect(self.replot)
         self.timer.start(timeout) # x ms.
 
+        self._last_old = 'bid'
         self.timer_clean = QC.QTimer()
         self.timer_clean.timeout.connect(self._clean_db)
         # Remove unused/old data from in-memory database each n seconds.
@@ -88,12 +89,27 @@ class PlotDepth(QG.QWidget):
         # Check if the curves are crossing and remove that data.
         # This might happen after a reconnect where we have outdated
         # information. This also happens when the initial is old.
+        #
+        # Eventually (after running for some time) these queries
+        # should stop removing rows.
+        if self._last_old == 'bid':
+            # Remove possibly old asks now.
+            self._last_old = 'ask'
+            comp, order = '<', 'DESC'
+            t1, t2 = 'ask', 'bid'
+        else:
+            # Remove possibly old bids now.
+            self._last_old = 'bid'
+            comp, order = '>', 'ASC'
+            t1, t2 = 'bid', 'ask'
+
+        opts = {'t1': t1, 't2': t2, 'comp': comp, 'order': order}
         dnum = self._depth.execute("""
-            DELETE FROM bid WHERE price IN (
-                SELECT b.price FROM bid b WHERE b.price > (
-                    SELECT a.price FROM ask a ORDER BY a.price ASC
-                    LIMIT 1))""").rowcount
-        print("  Old bids removed:", dnum)
+            DELETE FROM [%(t1)s] WHERE price IN (
+                SELECT b.price FROM [%(t1)s] b WHERE b.price %(comp)s (
+                    SELECT a.price FROM [%(t2)s] a ORDER BY a.price %(order)s
+                    LIMIT 1))""" % opts).rowcount
+        print("  Old %ss removed:" % self._last_old, dnum)
         if dnum:
             self.need_replot += 1
             self.replot()
@@ -147,8 +163,8 @@ class PlotDepth(QG.QWidget):
         ax = self.ax
         ax.set_xlim(x_bid_data[-1], x_ask_data[-1])
         y_max = max(y_bid_data[-1], y_ask_data[-1])
-        ##y_min = -(y_max * 0.01)
-        y_min = min(y_bid_data[0], y_ask_data[0])
+        y_min = -(y_max * 0.01) # This is good for linear scale.
+        #y_min = min(y_bid_data[0], y_ask_data[0]) # Better for log scale.
         ax.set_ylim(y_min, y_max)
 
         # Fill below the curves.
