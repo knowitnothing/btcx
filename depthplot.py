@@ -1,6 +1,6 @@
 import time
 import numpy
-import pylab
+import sqlite3
 import PyQt4.QtGui as QG
 import PyQt4.QtCore as QC
 from matplotlib.backends.backend_qt4agg import (
@@ -11,8 +11,14 @@ from matplotlib.ticker import MaxNLocator
 
 
 class PlotDepth(QG.QWidget):
-    def __init__(self, parent=None, timeout=1000):
+    def __init__(self, parent=None, timeout=1500):
         QG.QWidget.__init__(self, parent)
+
+        self._depth = sqlite3.connect(':memory:')
+        self._depth.execute("""CREATE TABLE
+                bid (price REAL PRIMARY KEY, amount TEXT)""")
+        self._depth.execute("""CREATE TABLE
+                ask (price REAL PRIMARY KEY, amount TEXT)""")
 
         self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
@@ -29,21 +35,47 @@ class PlotDepth(QG.QWidget):
         self.bid = self.ax.plot([], [], 'g', lw=3)[0]
         self.ask = self.ax.plot([], [], 'r', lw=3)[0]
 
-        self.data = {'bid': {}, # (price, volume)
-                     'ask': {}
-                    }
-
         # Limit visual display to n points.
         self.nbin = 100
-        self.y_bid = numpy.zeros(self.nbin)
-        self.y_ask = numpy.zeros(self.nbin)
-        self.x = numpy.zeros(self.nbin * 2)
 
         self.need_replot = 0
-        self.replot_after = 10
+        self.replot_after = 20
         self.timer = QC.QTimer()
         self.timer.timeout.connect(self.replot)
         self.timer.start(timeout) # x ms.
+
+        self.timer_clean = QC.QTimer()
+        self.timer_clean.timeout.connect(self._clean_db)
+        # Remove unused data from in-memory database each n seconds.
+        self.timer_clean.start(120 * 1000)
+
+
+    def _clean_db(self):
+        print("Cleaning database..")
+
+        # Clean bids.
+        nrow = self._depth.execute("SELECT COUNT(*) FROM bid").fetchone()[0]
+        print("  ", nrow, "bid")
+        if nrow > self.nbin:
+            print("  Rows to remove from bids: %d" % (nrow - self.nbin))
+            self._depth.execute("""
+                DELETE FROM bid WHERE price IN (
+                    SELECT price FROM bid ORDER BY price ASC
+                    LIMIT ?)""", (nrow - self.nbin, ))
+        else:
+            print("  'bids' is clean")
+
+        # Clean asks.
+        nrow = self._depth.execute("SELECT COUNT(*) FROM ask").fetchone()[0]
+        print("  ", nrow, "ask")
+        if nrow > self.nbin:
+            print("  Rows to remove from asks: %d" % (nrow - self.nbin))
+            self._depth.execute("""
+                DELETE FROM ask WHERE price IN (
+                        SELECT price FROM ask ORDER BY price DESC
+                        LIMIT ?)""", (nrow - self.nbin, ))
+        else:
+            print("  'asks' is clean")
 
 
     def replot(self, threshold=10):
@@ -53,62 +85,66 @@ class PlotDepth(QG.QWidget):
             return
         self.need_replot = 0
 
-        if not len(self.data['bid']) or not len(self.data['ask']):
+        now = time.time()
+        # Grab up-to-date bid data.
+        result = self._depth.execute("""
+                SELECT a.price, CAST(sum(b.amount) AS REAL)
+                FROM bid a LEFT JOIN bid b ON (b.price >= a.price)
+                GROUP BY a.price ORDER BY a.price DESC LIMIT ?""",
+                (self.nbin, ))
+        data_bid = numpy.array(result.fetchall())
+
+        # Grab up-to-date ask data.
+        result = self._depth.execute("""
+                SELECT a.price, CAST(sum(b.amount) AS REAL)
+                FROM ask a LEFT JOIN ask b on (b.price <= a.price)
+                GROUP BY a.price ORDER BY a.price ASC LIMIT ?""",
+                (self.nbin, ))
+        data_ask = numpy.array(result.fetchall())
+
+        if not len(data_bid) or not len(data_ask):
             return
-
-        x, y_bid, y_ask = self.x, self.y_bid, self.y_ask
-
-        # Up-to-date bid data.
-        z = numpy.array(sorted(self.data['bid'].items())[-self.nbin:])
-        bid_len = len(z)
-        x[:bid_len] = z[:,0]
-        y_bid[:bid_len] = z[:,1]
-
-        # Up-to-date ask data.
-        z = numpy.array(sorted(self.data['ask'].items())[:self.nbin])
-        ask_len = len(z)
-        i = ask_len + bid_len
-        x[bid_len:i] = z[:,0]
-        y_ask[:ask_len] = z[:,1]
 
         # Limit data to be displayed so "weird" things like
         # bid at 10 dollars when the current price is 110 dollars
         # is not displayed.
-        if ask_len < self.nbin/10 or bid_len < self.nbin/10:
+        if len(data_ask) < self.nbin/10 or len(data_bid) < self.nbin/10:
             # Except if there are too few data points.
             threshold = float('inf')
-        x_bid = (x[bid_len - 1] - x[:bid_len]) < threshold
-        x_ask = (x[bid_len:i] - x[bid_len]) < threshold
+        x_bid = (data_bid[:,0][0] - data_bid[:,0]) < threshold
+        x_ask = (data_ask[:,0] - data_ask[:,0][0]) < threshold
 
-        y_bid_cs = y_bid[:bid_len][::-1].cumsum()[::-1]
-        y_ask_cs = y_ask[:ask_len].cumsum()
+        x_bid_data = data_bid[:,0][x_bid]
+        y_bid_data = data_bid[:,1][x_bid]
 
-        x = (x[:bid_len][x_bid], x[bid_len:i][x_ask])
+        x_ask_data = data_ask[:,0][x_ask]
+        y_ask_data = data_ask[:,1][x_ask]
 
         # Update lines.
-        self.bid.set_data(x[0], y_bid_cs[x_bid])
-        self.ask.set_data(x[1], y_ask_cs[x_ask])
+        self.bid.set_data(x_bid_data[::-1], y_bid_data[::-1])
+        self.ask.set_data(x_ask_data, y_ask_data)
+
+        print("took", time.time() - now)
 
         # Adjust axes.
         ax = self.ax
-        ax.set_xlim(x[0][0], x[1][-1])
-        y_max = max(y_bid_cs[x_bid][0], y_ask_cs[x_ask][-1])
-        #y_min = -(y_max * 0.01)
-        y_min = min(y_bid_cs[x_bid][-1], y_ask_cs[x_ask][0])
+        ax.set_xlim(x_bid_data[-1], x_ask_data[-1])
+        y_max = max(y_bid_data[-1], y_ask_data[-1])
+        ##y_min = -(y_max * 0.01)
+        y_min = min(y_bid_data[0], y_ask_data[0])
         ax.set_ylim(y_min, y_max)
 
+        # Redraw.
         self.canvas.draw_idle()
 
 
     def new_data(self, typ, price, amount_now):
         if str(amount_now) != '0':
-            # XXX self.data might grow too much, take care.
-            self.data[typ][price] = float(amount_now)
+            self._depth.execute("INSERT OR REPLACE INTO %s VALUES (?, ?)" % typ,
+                    (float(price), float(amount_now)))
         else:
-            #print("remove", typ, price)
-            if price in self.data[typ]:
-                del self.data[typ][price]
-
+            self._depth.execute("DELETE FROM %s WHERE price = ?" % typ,
+                    (float(price), ))
 
         self.need_replot += 1
         if self.need_replot > self.replot_after:
