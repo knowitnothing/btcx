@@ -278,8 +278,8 @@ class MtgoxProtocol(WebSocketClientProtocol):
                 for order in result[entry]:
                     price = Decimal(order['price_int']) / factor
                     amount = Decimal(order['amount_int']) / coin
-                    self.evt.emit('order_fetch', (typ, price, amount))
-            self.evt.emit('order_fetch', (None, None, None))
+                    self.evt.emit('depth_fetch', (typ, price, amount))
+            self.evt.emit('depth_fetch', (None, None, None))
         else:
             rtype = name.replace('/', '_')
             print("Emitting result event for %s" % rtype)
