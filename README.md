@@ -26,6 +26,8 @@ Demo
 
 ![demo4](screenshot/demo_4.png?raw=True)
 
+![demo7](screenshot/demo_7.png?raw=True)
+
 
 Bitcoin Donations
 =================
