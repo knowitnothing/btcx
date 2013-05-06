@@ -50,26 +50,40 @@ class PlotDepth(QG.QWidget):
 
         self.timer_clean = QC.QTimer()
         self.timer_clean.timeout.connect(self._clean_db)
-        # Remove unused data from in-memory database each n seconds.
-        self.timer_clean.start(30 * 1000)
+        # Remove unused/old data from in-memory database each n seconds.
+        self.timer_clean.start(15 * 1000)
 
 
     def _clean_db(self):
         print("Cleaning database..")
 
         # Clean bids.
-        self._depth.execute("""
+        dnum = self._depth.execute("""
             DELETE FROM bid WHERE price IN (
                 SELECT a.price FROM bid a
                 WHERE ((SELECT b.price FROM bid b ORDER BY b.price DESC
-                        LIMIT 1) - a.price) > ?)""", (self.price_threshold, ))
+                        LIMIT 1) - a.price) > ?)""", (1.5*self.price_threshold,
+                            )).rowcount
+        print("  Bids removed:", dnum)
 
         # Clean asks.
-        self._depth.execute("""
+        dnum = self._depth.execute("""
             DELETE FROM ask WHERE price IN (
                 SELECT a.price FROM ask a
                 WHERE (a.price - (SELECT b.price FROM ask b ORDER BY b.price
-                        ASC LIMIT 1)) > ?)""", (self.price_threshold, ))
+                        ASC LIMIT 1)) > ?)""", (1.5*self.price_threshold,
+                            )).rowcount
+        print("  Asks removed:", dnum)
+
+        # Check if the curves are crossing and remove that data.
+        # This might happen after a reconnect where we have outdated
+        # information. This also happens when the initial is old.
+        dnum = self._depth.execute("""
+            DELETE FROM bid WHERE price IN (
+                SELECT b.price FROM bid b WHERE b.price > (
+                    SELECT a.price FROM ask a ORDER BY a.price ASC
+                    LIMIT 1))""").rowcount
+        print("  Old bids removed:", dnum)
 
         self._depth.execute("VACUUM")
 
