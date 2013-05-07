@@ -14,6 +14,7 @@ from twisted.internet import reactor, task
 
 # Own modules
 import mtgox_tradehist
+from coe import CallOnEvent
 from btcx import mtgox
 from candlechart import Candlestick
 print("woof!")
@@ -21,17 +22,18 @@ print("woof!")
 
 class Demo(QG.QMainWindow):
 
-    def __init__(self, db):
+    def __init__(self, db, max_hours_ago='3.5', **kwargs):
         QG.QMainWindow.__init__(self)
 
         self.db = db
+        self.loaded = False
         self.ts = None
         self.last_ts, self.last_tid = None, None
         self.last_candle = []
 
-        self.candle_minute = 5
-        self.plot_hours = 3
-        self._load_last = '3.5' # x hours to load from database.
+        self.candle_minute = kwargs.get('candle_minute_duration', 60)
+        self.plot_hours = kwargs.get('plot_hours', 24)
+        self._load_last = max_hours_ago # x hours to load from database.
 
         self.candle_duration = 60 * self.candle_minute # 60 * x min = y seconds
         self.plot = Candlestick(self,
@@ -53,7 +55,7 @@ class Demo(QG.QMainWindow):
 
         quit_btn.pressed.connect(self.close)
 
-        self.setWindowTitle(u'MtGox Trades -- 1 candle / %d min -- %d hours'
+        self.setWindowTitle(u'MtGox Trades -- 1 candle / %g min -- %g hours'
                 % (self.candle_minute, self.plot_hours))
         self.plot.ax.set_ylabel(u'USD/BTC')
         self.plot.ax_vol.set_ylabel(u'Traded BTC')
@@ -90,6 +92,7 @@ class Demo(QG.QMainWindow):
 
                 if candle:
                     # Update the last candle added.
+                    print("finished", time.localtime(last_ts), candle)
                     self.plot.update_right_candle(*candle, redraw=False)
 
                 o, h, l, c = usdprice, usdprice, usdprice, usdprice
@@ -109,22 +112,67 @@ class Demo(QG.QMainWindow):
             # Update last non-finished candle.
             self.plot.update_right_candle(*candle, redraw=False)
             # Redraw plot.
-            self.plot.canvas.draw()
-
+            self.plot.canvas.draw_idle()
 
 
 def main():
-    mtgox_client, tradefetch, db = mtgox_tradehist.setup_client(verbose=0)
-    plot = Demo(db)
+    hours_ago = 48 # 2 days of data
+    mtgox_client, tradefetch, db = mtgox_tradehist.setup_client(verbose=0,
+            max_hours_ago=hours_ago, dbname='mtgox_trades3.db')
+    plot = Demo(db, max_hours_ago=hours_ago,
+            candle_minute_duration=30, # 2 candles per hour
+            plot_hours=48)             # 2 days, 96 candles
 
     print('Loading from database..')
     plot.load_from_db()
 
     print('Setting up MtGox client..')
+
+    def store_new_trade(args):
+        tid, timestamp, ttype, price, amount = args[:5]
+        if timestamp is None:
+            return
+        elif not plot.loaded:
+            print("still fetching..")
+            return
+        print("> trade", timestamp, ttype, price, amount)
+        tradefetch.store_trade(tid, timestamp, ttype,
+                str(price), str(amount))
+        task.deferLater(reactor, 0, plot.load_from_db)
+
+    def stop_accepting_trades():
+        print("no more live trades for you")
+        plot.loaded = False
+
+    def start_accepting_trades():
+        print("what is done is done")
+        plot.load_from_db()
+        plot.loaded = True
+
+    # During loading from database, we will receive several 'partial_download'
+    # events representing that some part of the requested data is already
+    # available.
     mtgox_client.evt.listen('partial_download', lambda _: plot.load_from_db())
-    mtgox_client.evt.listen('done', lambda _: plot.load_from_db())
-    mtgox_client.evt.listen('done', lambda _:
-            task.deferLater(reactor, 1, tradefetch.load_from_last_stored))
+    # If the database has been loaded, trades from the streaming data will
+    # be stored as they come in.
+    mtgox_client.evt.listen('trade', store_new_trade)
+
+    coe = CallOnEvent(mtgox_client)
+    # Each time we connect, listen from trades.
+    coe.call('subscribe_type', 'trades', event='connected')
+    # After database is loaded, start storing new trades.
+    coe.call(start_accepting_trades, client=False, event='done')
+    # When we disconnect, we need to identify that we need to fetch
+    # trades again once we reconnect.
+    coe.call(stop_accepting_trades, client=False, event='disconnected')
+    # Note that the object is listening for the 'connected' event
+    # such that it will download the trades we missed while
+    # disconnected and then emit a 'done' event after it has fetched
+    # all such trades.
+    #
+    # Nice eh ?
+
+
     mtgox.start(mtgox_client)
 
     print('Showing GUI..')
