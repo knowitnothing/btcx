@@ -83,9 +83,10 @@ def main(key, secret):
     cli.evt.listen('userorder', demo.userorder)
 
     coe = CallOnEvent(cli)
-    coe.call('depth_fetch', once=True) # Default event: connected.
+    coe.call('subscribe_type', 'depth') # Default event: connected.
     coe.call('order_list')
-    coe.call('subscribe_type', 'depth')
+    # If you do not wish to pre-load depth data, comment the following line.
+    coe.call('depth_fetch', once=True)
 
 
     def finish():
