@@ -1,4 +1,5 @@
 import os
+from twisted.internet import reactor, task
 from twisted.words.xish.utility import EventDispatcher
 
 USER_AGENT = 'btcx-bot'
@@ -26,7 +27,9 @@ class ExchangeEvent(EventDispatcher):
 
     def emit(self, msg, data=None):
         event = "%s/%s" % (self.prefix, msg)
-        ret = self.dispatch(data, event)
+        # Instead of calling dispatch directly, we circumvent the bug
+        # https://twistedmatrix.com/trac/ticket/6507 by doing:
+        task.deferLater(reactor, 0, self.dispatch, data, event)
 
     def remove(self, lid):
         if lid in self.listener:
