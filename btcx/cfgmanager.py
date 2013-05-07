@@ -1,9 +1,13 @@
+import os
+import time
 import json
 import scrypt
 import getpass
 import binascii
 
-class ExchangeConfig(object):
+from version import __version__
+
+class Config(object):
     def __init__(self, cfgname='btcx.cfg'):
         self.cfgname = cfgname
         self.cfg = None
@@ -14,15 +18,21 @@ class ExchangeConfig(object):
             try:
                 cfg = json.load(f)
             except ValueError: # Empty file.
-                cfg = {} # Empty configuration.
+                cfg = {'version': __version__,
+                       'exchange': {}
+                      } # Empty configuration.
                 json.dump(cfg, f)
+        if 'version' not in cfg:
+            raise Exception("Configuration is invalid. Run the 'update' "
+                            "function to adjust it.")
         self.cfg = cfg
 
     def load_key_secret(self, exchange, keyname, password):
-        if exchange not in self.cfg or keyname not in self.cfg[exchange]:
+        exchange = self.cfg['exchange'].get(exchange, None)
+        if exchange is None or keyname not in exchange:
             return None, None
-        enc_secret = self.cfg[exchange][keyname]['secret']
-        key = self.cfg[exchange][keyname]['key']
+        enc_secret = exchange[keyname]['secret']
+        key = exchange[keyname]['key']
 
         try:
             secret = scrypt.decrypt(binascii.unhexlify(enc_secret), password)
@@ -32,9 +42,10 @@ class ExchangeConfig(object):
             return key, secret
 
     def list_all_keys(self):
-        for exchange in self.cfg:
-            for keyname in self.cfg[exchange]:
-                yield exchange, keyname
+        exchange = self.cfg['exchange']
+        for exc, key in exchange.iteritems():
+            for keyname in key:
+                yield exc, keyname
 
     def add_key_secret(self, exchange, keyname, key, enc_sec):
         """
@@ -42,9 +53,8 @@ class ExchangeConfig(object):
         for a given exchange. If keyname already exists for the
         exchange, the old pair is replaced.
         """
-        if exchange not in self.cfg:
-            self.cfg[exchange] = {}
-        exc = self.cfg[exchange]
+        exchanges = self.cfg['exchange']
+        exc = exchanges[exchange]
         exc[keyname] = {'key': key, 'secret': enc_sec}
         self.rewrite()
 
@@ -71,7 +81,7 @@ def loop_ask(func, msg):
     return answer
 
 def obtain_key_secret(argl, **kwargs):
-    cfgman = ExchangeConfig(**kwargs)
+    cfgman = Config(**kwargs)
     cfgman.load_config()
 
     if len(argl) == 1 and argl[0] == "-n":
@@ -126,6 +136,40 @@ def setup_new_key(cfgman, default_exchange='mtgox', default_kname='none'):
 
     enc_sec = encrypt_data(api_secret, pwd)
     cfgman.add_key_secret(exchange, keyname, api_key, enc_sec)
+
+
+def update(cfgname='btcx.cfg'):
+    """
+    This function is meant to update your old configuration file.
+    It is deemed old if it doesn't contain the version of this package.
+
+    Note: this function might go away.
+    """
+    with open(cfgname, 'a+b') as f:
+        f.seek(0)
+        try:
+            cfg = json.load(f)
+        except ValueError:
+            # Empty file is fine, there is nothing to update.
+            return
+
+    newcfg = {'version': __version__}
+    if 'exchange' not in cfg:
+        # When this configuration file was saved, each exchange
+        # was a key in cfg. Now it exchange is a key in cfg['exchange']
+        newcfg['exchange'] = {}
+        for key, val in cfg.iteritems():
+            newcfg['exchange'][key] = val
+    else:
+        newcfg.update(cfg)
+
+    backup = '%s_%s' % (cfgname, time.time())
+    os.rename(cfgname, backup)
+    with open(cfgname, 'w') as f:
+        json.dump(newcfg, f)
+
+    return backup
+
 
 
 if __name__ == "__main__":
