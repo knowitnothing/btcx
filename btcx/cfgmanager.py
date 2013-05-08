@@ -153,6 +153,10 @@ def update(cfgname='btcx.cfg'):
             # Empty file is fine, there is nothing to update.
             return
 
+    if 'version' in cfg and 'exchange' in cfg:
+        # Nothing to update.
+        return
+
     newcfg = {'version': __version__}
     if 'exchange' not in cfg:
         # When this configuration file was saved, each exchange

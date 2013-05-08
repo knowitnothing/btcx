@@ -8,4 +8,7 @@ if __name__ == "__main__":
     else:
         backup = cfgmanager.update()
 
-    print "Configuration updated. Backup saved to: %s" % backup
+    if backup is None:
+        print "Your configuration is already updated."
+    else:
+        print "Configuration updated. Backup saved to: %s" % backup
