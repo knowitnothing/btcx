@@ -14,14 +14,14 @@ from twisted.python import log
 from twisted.internet import reactor, task
 from twisted.web.http_headers import Headers
 
-from common import USER_AGENT, ExchangeEvent
+import common
 from http import HTTPAPI
 
 class BTCe(HTTPAPI):
 
     def __init__(self, key, secret, host):
         super(BTCe, self).__init__(host)
-        self.evt = ExchangeEvent(eventprefix="//btce")
+        self.evt = common.ExchangeEvent(eventprefix="//btce")
         self.key = key.encode('ascii')
         self.secret = secret
         self.host = host
@@ -48,7 +48,7 @@ class BTCe(HTTPAPI):
                 "Content-type": ["application/x-www-form-urlencoded"],
                 "Key": [self.key],
                 "Sign": [sign.hexdigest()],
-                "User-Agent": [USER_AGENT],
+                "User-Agent": [common.USER_AGENT],
         })
         d = treq.post('%s/tapi' % self.host, data=call_p, headers=headers)
         d.addCallback(lambda response: self.decode_or_error(
@@ -67,14 +67,30 @@ class BTCe(HTTPAPI):
     def trades(self, coin='btc', currency='usd'):
         coin = coin.lower()
         currency = currency.lower()
-        self.call('api/2/%s_%s/trades' % (coin, currency),
-                lambda data, _: self.evt.emit('trades', data))
+        self.call('api/2/%s_%s/trades' % (coin, currency), self._handle_trades)
 
     def depth(self, coin='btc', currency='usd'):
         coin = coin.lower()
         currency = currency.lower()
-        self.call('api/2/%s_%s/depth' % (coin, currency),
-                lambda data, _: self.evt.emit('depth', data))
+        self.call('api/2/%s_%s/depth' % (coin, currency), self._handle_depth)
+
+    def _handle_trades(self, data, url):
+        for trade in reversed(data): # Return from older to most recent.
+            trade = common.Trade(trade['tid'], trade['date'],
+                                 trade['trade_type'][0],
+                                 Decimal(str(trade['price'])),
+                                 Decimal(str(trade['amount'])))
+            self.evt.emit('trade_fetch', trade)
+        self.evt.emit('trade_fetch', common.TRADE_EMPTY)
+
+    def _handle_depth(self, data, url):
+        for typ, items in data.iteritems():
+            for price, volume in items:
+                depth = common.Depth(typ[0],
+                                     Decimal(str(price)), Decimal(str(volume)))
+                self.evt.emit('depth_fetch', depth)
+        self.evt.emit('depth_fetch', common.DEPTH_EMPTY)
+
 
     # Private (these retrieve data only about the own account)
     def get_info(self):
