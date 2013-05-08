@@ -181,12 +181,13 @@ class PlotDepth(QG.QWidget):
 
 
     def new_data(self, typ, price, amount_now):
+        table = 'ask' if typ.startswith('a') else 'bid'
         price = int(price * self.price_factor)
         if str(amount_now) != '0':
-            self._depth.execute("INSERT OR REPLACE INTO %s VALUES (?, ?)" % typ,
-                    (price, float(amount_now)))
+            self._depth.execute("INSERT OR REPLACE INTO [%s] VALUES (?, ?)" %
+                    table, (price, float(amount_now)))
         else:
-            self._depth.execute("DELETE FROM %s WHERE price = ?" % typ,
+            self._depth.execute("DELETE FROM [%s] WHERE price = ?" % table,
                     (price, ))
 
         self.need_replot += 1
