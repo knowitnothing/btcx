@@ -3,3 +3,4 @@ dep/*
 *.swp
 *.db
 btcx.cfg
+.gitignore
