@@ -14,7 +14,7 @@ from matplotlib.ticker import ScalarFormatter
 
 # Own modules
 import systray
-from btcx import btce, mtgox, bitstamp, btcchina
+from btcx import btce, mtgox, bitstamp, btcchina, common
 from simpleplot import SimplePlot
 print("woof!")
 
@@ -71,12 +71,16 @@ class Demo(QG.QMainWindow):
         self.plot.ax['vol'].yaxis.set_major_formatter(ScalarFormatter(False))
 
         # Keep the timestamp of the most recent trade in the exchances.
-        self.last_btce_ts = float('-inf')
-        self.last_bitstamp_ts = float('-inf')
-        self.last_btcchina_ts = float('-inf')
+        self.last_btce = [float('-inf'), float('-inf')]
+        self.last_bitstamp = [float('-inf'), float('-inf')]
+        self.last_btcchina = [float('-inf'), float('-inf')]
 
         self.setup_gui()
 
+    def closeEvent(self, event):
+        reactor.stop()
+        event.accept()
+        print("Now we wait..")
 
     def setup_gui(self):
         widget = QG.QWidget()
@@ -91,67 +95,71 @@ class Demo(QG.QMainWindow):
         quit_btn.pressed.connect(self.close)
 
 
-    def mtgox_trade(self, (tid, timestamp, ttype, price, amount, coin)):
-        if tid is None:
+    def mtgox_trade(self, trade):#(tid, timestamp, ttype, price, amount, coin)):
+        if trade.id is None:
             # End of pre-fetch.
             return
-        elif price is None:
+        elif trade.price is None:
             # Trade in a different currency or not primary.
             return
-        print('mtgox trade:', ttype, timestamp, float(price), amount)
-        self.plot.append_value(float(price), 'trade', 'mtgox')
+        print('mtgox trade:', trade)
+        self.plot.append_value(float(trade.price), 'trade', 'mtgox')
 
         # Show price in systray.
-        last_s_price = str(price)
+        last_s_price = str(trade.price)
         if last_s_price.find('.') > 0:
             last_s_price = last_s_price[:last_s_price.find('.') + 2]
         self.stray.update_text(last_s_price, chunk_size=3)
 
-    def btce_trade(self, data):
-        for item in data:
-            ttype = item['trade_type']
-            timestamp = item['date']
-            price = item['price']
-            amount = item['amount']
-            if timestamp <= self.last_btce_ts:
-                break
-            print('btce trade:', ttype, timestamp, price, amount)
-            self.plot.append_value(price, 'trade', 'btce', False)
-        self.last_btce_ts = data[0]['date']
-        self.plot.update_line('trade', 'btce')
+    def btce_trade(self, trade):
+        if trade is common.TRADE_EMPTY:
+            # Fetch finished.
+            if self.last_btce[0] != self.last_btce[1]:
+                # At least one new trade from last fetch.
+                self.last_btce[0] = self.last_btce[1]
+                self.plot.update_line('trade', 'btce')
+            return
 
-    def bitstamp_trade(self, data):
-        for item in data:
-            #tid = item['tid']
-            timestamp = int(item['date'])
-            price = Decimal(item['price'])
-            amount = Decimal(item['amount'])
-            if timestamp <= self.last_bitstamp_ts:
-                break
-            print('bitstamp trade:', timestamp, price, amount)
-            self.plot.append_value(float(price), 'trade', 'bitstamp', False)
-        self.last_bitstamp_ts = int(data[0]['date'])
-        self.plot.update_line('trade', 'bitstamp')
+        if trade.id > self.last_btce[1]:
+            print('btce trade:', trade)
+            self.plot.append_value(float(trade.price), 'trade', 'btce', False)
+            self.last_btce[1] = trade.id
 
-    def btcchina_trade(self, data):
-        cnyusd = Decimal('0.1625') # XXX Retrieve the updated value.
-        for item in data:
-            #tid = item['tid']
-            timestamp = int(item['date'])
-            price = Decimal(item['price'])
-            amount = Decimal(item['amount'])
-            if timestamp <= self.last_btcchina_ts:
-                break
-            print("btcchina trade:", timestamp, '%g' % price, '%g' % amount)
-            self.plot.append_value(float(price * cnyusd),
+    def bitstamp_trade(self, trade):
+        if trade is common.TRADE_EMPTY:
+            # Fetch finished
+            if self.last_bitstamp[0] != self.last_bitstamp[1]:
+                # At least one new trade from last fetch.
+                self.last_bitstamp[0] = self.last_bitstamp[1]
+                self.plot.update_line('trade', 'bitstamp')
+            return
+
+        if trade.id > self.last_bitstamp[1]:
+            print('bitstamp trade:', trade)
+            self.plot.append_value(float(trade.price),'trade','bitstamp',False)
+            self.last_bitstamp[1] = trade.id
+
+    _cnyusd = Decimal('0.1625') # XXX Retrieve the updated value.
+    def btcchina_trade(self, trade):
+        if trade is common.TRADE_EMPTY:
+            # Fetch finished
+            if self.last_btcchina[0] != self.last_btcchina[1]:
+                # At least one new trade from last fetch.
+                self.last_btcchina[0] = self.last_btcchina[1]
+                self.plot.update_line('trade', 'btcchina')
+            return
+
+        if trade.id > self.last_btcchina[1]:
+            print("btcchina trade:", trade)
+            self.plot.append_value(float(trade.price * self._cnyusd),
                     'trade', 'btcchina', False)
-        self.last_btcchina_ts = int(data[-1]['date'])
-        self.plot.update_line('trade', 'btcchina')
+            self.last_btcchina[1] = trade.id
 
 
     def mtgox_lag(self, lag):
         self.plot.append_value(float(lag), 'lag', 'mtgox')
 
+    # XXX Next event to standardize: ticker
     def mtgox_vol(self, (ask, bid, vwap, low, high, vol, coin)):
         self.plot.append_value(float(vol), 'vol', 'mtgox')
         # Show ticker data in window's title.
@@ -180,47 +188,31 @@ def main(key, secret):
     mtgox_client.evt.listen('ticker', plot.mtgox_vol)
     mtgox.start(mtgox_client)
 
-    btce_client = btce.create_client('', '') # No key/secret.
-    btce_client.evt.listen('trades', plot.btce_trade)
+    btce_client = btce.create_client()
+    btce_client.evt.listen('trade_fetch', plot.btce_trade)
     # Get the last trades each x seconds.
-    btce_pool = task.LoopingCall(lambda: btce_client.trades(currency=currency))
+    btce_pool = task.LoopingCall(btce_client.trades, currency=currency)
     btce_pool.start(10) # x seconds
 
+    btcchina_cli = btcchina.create_client()
+    btcchina_cli.evt.listen('trade_fetch', plot.btcchina_trade)
+    btcchina_pool = task.LoopingCall(btcchina_cli.trades)
+    btcchina_pool.start(10)
+
     bitstamp_cli = bitstamp.create_client()
-    bitstamp_cli.evt.listen('trades', plot.bitstamp_trade)
+    bitstamp_cli.evt.listen('trade_fetch', plot.bitstamp_trade)
     bitstamp_cli.transactions(timedelta=60*60) # Trades from last hour.
     # Get the last trades each x seconds.
-    bitstamp_pool = task.LoopingCall(lambda:
-            bitstamp_cli.transactions(timedelta=60) if
-                plot.last_bitstamp_ts > 0 else None)
-    bitstamp_pool.start(10) # x seconds.
-
-    btcchina_cli = btcchina.create_client()
-    btcchina_cli.evt.listen('trades', plot.btcchina_trade)
-    btcchina_cli.trades()
-    btcchina_pool = task.LoopingCall(lambda:
-            btcchina_cli.trades() if plot.last_btcchina_ts > 0 else None)
-    btcchina_pool.start(10)
+    bitstamp_pool = task.LoopingCall(bitstamp_cli.transactions, timedelta=60)
+    bitstamp_pool.start(10, now=False) # x seconds.
 
 
     print('Showing GUI..')
     plot.show()
     plot.raise_()
 
-    def finish():
-        print("Finishing..")
-        if mtgox_client.connected:
-            mtgox_client.sendClose()
-        for task in (btce_pool, bitstamp_pool, btcchina_pool):
-            if task.running:
-                task.stop()
-        if reactor.running:
-            reactor.stop()
-            print("Reactor stopped")
-
-    reactor.runReturn()
-    app.lastWindowClosed.connect(finish)
-    app.exec_()
+    reactor.addSystemEventTrigger('after', 'shutdown', app.quit)
+    reactor.run()
 
 
 if __name__ == "__main__":

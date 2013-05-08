@@ -28,34 +28,33 @@ class Demo(object):
         self.own_order = {}
         self.ask, self.bid = None, None
 
-    def userorder(self, args):
-        oid, otype, timestamp, status, price, amount, currency = args[:7]
-        if status == "removed":
+    def userorder(self, order):
+        oid, price = order.id, order.price
+        if order.status == "removed":
             if oid in self.own_order:
                 print('removing line at', price)
                 data = self.own_order.pop(oid)
                 data[1].remove()
         else:
-            print(oid, status, price, amount, timestamp, currency)
+            print(order)
+            currency = order.pair[0]
             if currency == self.currency and oid not in self.own_order:
                 print('adding line at', price)
                 line = self.plot.ax.axvline(x=float(price), color='b')
                 self.own_order[oid] = (price, line)
 
-    def depth_fetch(self, args):
-        typ, price, amount = args[:3]
-        if typ is None:
+    def depth_fetch(self, depth):
+        if depth.type is None:
             # Fetch finished.
             self.plot.replot_after = 30
             print("There you go")
         else:
             self.plot.replot_after = 1000
-            self.plot.new_data(typ, price, amount)
+            self.plot.new_data(depth.type, depth.price, depth.volume)
 
-    def depth_live(self, args):
-        typ, price, amount = args[:3]
-        print(typ, price, amount)
-        self.plot.new_data(typ, price, amount)
+    def depth_live(self, depth):
+        print(depth)
+        self.plot.new_data(depth.type, depth.price, depth.volume)
 
 
 def main(key, secret):
@@ -72,6 +71,10 @@ def main(key, secret):
     w.setLayout(l)
     main.setWindowTitle(u'MtGox Depth Market')
     main.setCentralWidget(w)
+    def finish(event):
+        reactor.stop()
+        event.accept()
+    main.closeEvent = finish
 
     demo = Demo(plot, currency)
 
@@ -88,17 +91,11 @@ def main(key, secret):
     # If you do not wish to pre-load depth data, comment the following line.
     coe.call('depth_fetch', once=True)
 
-
-    def finish():
-        if cli.connected:
-            cli.sendClose()
-        reactor.stop()
-
     main.show()
     main.raise_()
-    reactor.runReturn()
-    app.lastWindowClosed.connect(finish)
-    app.exec_()
+
+    reactor.addSystemEventTrigger('after', 'shutdown', app.quit)
+    reactor.run()
 
 
 if __name__ == "__main__":

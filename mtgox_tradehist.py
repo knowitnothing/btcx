@@ -38,8 +38,8 @@ class TradeFetchStore(object):
             print("Loading from", self.last_tid)
         self.mtgox.load_trades_since(tid=self.last_tid)
 
-    def on_trade_fetch(self, (tid, timestamp, ttype, price, amount, coin)):
-        if tid is None:
+    def on_trade_fetch(self, trade):
+        if trade.id is None:
             self.db.commit()
             if self.verbose:
                 print("tid", self.last_tid, self.prev_last, "<<")
@@ -54,18 +54,20 @@ class TradeFetchStore(object):
                 self.mtgox.load_trades_since(tid=self.last_tid)
             return
 
-        self.last_tid = max(self.last_tid, tid)
-        if price is None:
+        self.last_tid = max(self.last_tid, trade.id)
+        if trade.price is None:
             # Trade in a different currency or not primary.
             return
 
         if self.verbose > 5:
-            print("trade", tid, timestamp, ttype, price, amount)
-        self.store_trade(tid, timestamp, ttype, str(price), str(amount))
+            print("trade", trade)
+        self.store_trade(trade)
 
-    def store_trade(self, tid, timestamp, ttype, price, amount):
-        query = "INSERT OR REPLACE INTO %s VALUES (?, ?, ?, ?, ?)" % self.table
-        self.cursor.execute(query, (tid, timestamp, ttype, price, amount))
+    def store_trade(self, trade):
+        query = "INSERT OR REPLACE INTO [%s] VALUES (?,?,?,?,?)" % self.table
+        self.cursor.execute(query, (
+            trade.id, trade.timestamp, trade.type,
+            str(trade.price), str(trade.amount)))
 
 
 

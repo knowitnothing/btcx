@@ -43,6 +43,11 @@ class Demo(QG.QMainWindow):
         self.setup_gui()
         self._loading = False
 
+    def closeEvent(self, event):
+        reactor.stop()
+        event.accept()
+        print("Now we wait..")
+
     def setup_gui(self):
         widget = QG.QWidget()
 
@@ -128,16 +133,14 @@ def main():
 
     print('Setting up MtGox client..')
 
-    def store_new_trade(args):
-        tid, timestamp, ttype, price, amount = args[:5]
-        if timestamp is None:
+    def store_new_trade(trade):
+        if trade.timestamp is None:
             return
         elif not plot.loaded:
             print("still fetching..")
             return
-        print("> trade", timestamp, ttype, price, amount)
-        tradefetch.store_trade(tid, timestamp, ttype,
-                str(price), str(amount))
+        print("> trade", trade)
+        tradefetch.store_trade(trade)
         task.deferLater(reactor, 0, plot.load_from_db)
 
     def stop_accepting_trades():
@@ -179,17 +182,8 @@ def main():
     plot.show()
     plot.raise_()
 
-    def finish():
-        print("Finishing..")
-        if mtgox_client.connected:
-            mtgox_client.sendClose()
-        if reactor.running:
-            reactor.stop()
-            print("Reactor stopped")
-
-    reactor.runReturn()
-    app.lastWindowClosed.connect(finish)
-    app.exec_()
+    reactor.addSystemEventTrigger('after', 'shutdown', app.quit)
+    reactor.run()
 
 
 if __name__ == "__main__":
