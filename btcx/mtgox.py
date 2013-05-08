@@ -322,7 +322,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         otype = order['type']
 
         return common.Order(oid, otype, timestamp, status, price, amount,
-                            '%s_%s' % (currency, coin))
+                (currency, coin))
 
     def _handle_private_user_order(self, order):
         if 'item' in order:

@@ -41,7 +41,7 @@ Order = namedtuple('Order', [
     'status',     # order status
     'price',      # value for selling/buying
     'amount',     # amount being sold/bought
-    'pair'        # 'x_y': currencies used for buying and receiving
+    'pair'        # (x, y): currencies used for buying and receiving
     ])
 
 # Depth data.
