@@ -351,7 +351,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
         self.evt.emit('wallet_update', (currency, amount, reason, info, ref))
 
     def _handle_private_lag(self, lag):
-        lag_sec = Decimal(lag['age']) / CURRENCY_FACTOR['lag']
+        lag_sec = Decimal(lag['age']) / CURRENCY_FACTOR['LAG']
         self.evt.emit('lag', lag_sec)
 
 
