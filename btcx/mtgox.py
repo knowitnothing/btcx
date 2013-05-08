@@ -282,7 +282,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         factor = currency_factor(currency)
         price = Decimal(depth["price_int"]) / factor
 
-        self.evt.emit('depth', (dtype, price, volume, coin))
+        self.evt.emit('depth', Depth(dtype, price, volume))
 
     def _handle_ticker(self, ticker):
         # Assumption: currency is the same in every field.
