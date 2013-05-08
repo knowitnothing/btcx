@@ -21,15 +21,7 @@ from autobahn.websocket import (WebSocketProtocol, WebSocketClientProtocol,
                                 WebSocketClientFactory, connectWS)
 
 
-from common import USER_AGENT, ExchangeEvent
-
-
-CURRENCY_FACTOR = {
-        "BTC": Decimal(100000000),
-        "JPY": Decimal(1000),
-        "lag": Decimal(1000000)
-}
-CURRENCY_DEFAULT_FACTOR = Decimal(100000)
+from common import USER_AGENT, ExchangeEvent, CURRENCY_FACTOR, currency_factor
 
 
 def calc_tid(hours_ago):
@@ -229,7 +221,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
 
         timestamp = int(trade['date'])
         ttype = trade['trade_type']
-        factor = CURRENCY_FACTOR.get(currency, CURRENCY_DEFAULT_FACTOR)
+        factor = currency_factor(currency)
         price = Decimal(trade['price_int']) / factor
         coin = trade['item']
         amount = Decimal(trade['amount_int']) / CURRENCY_FACTOR[coin]
@@ -271,7 +263,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
         elif name.endswith('money/depth/fetch') or name.endswith(
                 'money/depth/full'):
             # Result from depth_fetch or depth_full method.
-            factor = CURRENCY_FACTOR.get(self.currency, CURRENCY_DEFAULT_FACTOR)
+            factor = currency_factor(self.currency)
             coin = CURRENCY_FACTOR['BTC']
             for typ in ('bid', 'ask'):
                 entry = '%ss' % typ
@@ -295,7 +287,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
         coin = depth["item"]
         dtype = depth["type_str"]
         volume = Decimal(depth["total_volume_int"]) / CURRENCY_FACTOR[coin]
-        factor = CURRENCY_FACTOR.get(currency, CURRENCY_DEFAULT_FACTOR)
+        factor = currency_factor(currency)
         price = Decimal(depth["price_int"]) / factor
 
         self.evt.emit('depth', (dtype, price, volume, coin))
@@ -306,7 +298,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
         if currency != self.currency:
             return
 
-        factor = CURRENCY_FACTOR.get(currency, CURRENCY_DEFAULT_FACTOR)
+        factor = currency_factor(currency)
         ask = Decimal(ticker["sell"]["value_int"]) / factor
         bid = Decimal(ticker["buy"]["value_int"]) / factor
         coin = ticker["vol"]["currency"]
@@ -330,7 +322,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
         coin = order['item']
         amount = Decimal(order['amount']['value_int']) / CURRENCY_FACTOR[coin]
         currency = order['currency']
-        factor = CURRENCY_FACTOR.get(currency, CURRENCY_DEFAULT_FACTOR)
+        factor = currency_factor(currency)
         price = Decimal(order['price']['value_int']) / factor
         timestamp = int(order['date'])
         status = order['status']
@@ -353,7 +345,7 @@ class MtgoxProtocol(WebSocketClientProtocol):
         ref = wallet["ref"] # Reference code for bank transfer, if applicable.
 
         currency = wallet['balance']['currency']
-        factor = CURRENCY_FACTOR.get(currency, CURRENCY_DEFAULT_FACTOR)
+        factor = currency_factor(currency)
         amount = Decimal(wallet['balance']['value_int']) / factor
 
         self.evt.emit('wallet_update', (currency, amount, reason, info, ref))

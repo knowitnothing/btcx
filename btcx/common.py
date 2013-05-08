@@ -1,8 +1,23 @@
 import os
+from decimal import Decimal
 from twisted.internet import reactor, task
 from twisted.words.xish.utility import EventDispatcher
 
 USER_AGENT = 'btcx-bot'
+
+CURRENCY_FACTOR = {
+        "BTC": Decimal(100000000),
+        "JPY": Decimal(1000),
+        "LAG": Decimal(1000000)
+}
+CURRENCY_DEFAULT_FACTOR = Decimal(100000)
+
+def currency_factor(currency):
+    cur = currency.upper()
+    if cur not in CURRENCY_FACTOR:
+        return CURRENCY_DEFAULT_FACTOR
+    return CURRENCY_FACTOR[cur]
+
 
 class ExchangeEvent(EventDispatcher):
     def __init__(self, **kwargs):
