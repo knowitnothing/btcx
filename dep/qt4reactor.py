@@ -111,7 +111,7 @@ class TwistedSocketNotifier(QObject):
         def _write():
             why = None
             self.notifier.setEnabled(False)
-            
+
             try:
                 why = w.doWrite()
             except:
@@ -184,7 +184,7 @@ class QtReactor(posixbase.PosixReactorBase):
             notifier = primary.pop(xer)
             notifier.shutdown()
 
-        
+
     def removeReader(self, reader):
         """
         Remove a Selectable for notification of data available to read.
@@ -225,7 +225,7 @@ class QtReactor(posixbase.PosixReactorBase):
         self._timer.stop()
         self._timer.setInterval(0)
         self._timer.start()
-        
+
 
     def _iterate(self, delay=None, fromqt=False):
         """See twisted.internet.interfaces.IReactorCore.iterate.
@@ -237,7 +237,7 @@ class QtReactor(posixbase.PosixReactorBase):
 
     def doIteration(self, delay=None, fromqt=False):
         'This method is called by a Qt timer or by network activity on a file descriptor'
-        
+
         if not self.running and self._blockApp:
             self._blockApp.quit()
         self._timer.stop()
@@ -273,7 +273,7 @@ class QtEventReactor(QtReactor):
         self._events = {}
         super(QtEventReactor, self).__init__()
 
-        
+
     def addEvent(self, event, fd, action):
         """
         Add a new win32 event to the event loop.
@@ -317,7 +317,7 @@ class QtEventReactor(QtReactor):
         if closed:
             self._disconnectSelectable(fd, closed, action == 'doRead')
 
-            
+
     def timeout(self):
         t = super(QtEventReactor, self).timeout()
         return min(t, 0.01)
