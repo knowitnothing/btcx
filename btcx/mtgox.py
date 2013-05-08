@@ -21,9 +21,9 @@ from autobahn.websocket import (WebSocketProtocol, WebSocketClientProtocol,
                                 WebSocketClientFactory, connectWS)
 
 
-from common import USER_AGENT, ExchangeEvent, CURRENCY_FACTOR, currency_factor
+import common
+from common import CURRENCY_FACTOR, currency_factor
 from http import HTTPAPI
-
 
 def calc_tid(hours_ago):
     hours_ago = Decimal(hours_ago)
@@ -216,7 +216,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         coin = trade['item']
         amount = Decimal(trade['amount_int']) / CURRENCY_FACTOR[coin]
 
-        return (tid, timestamp, ttype, price, amount)
+        return common.Trade(tid, timestamp, ttype, price, amount)
 
 
     def _handle_result(self, result, req_id):
@@ -249,7 +249,8 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
                 if trade[0] is None:
                     continue
                 self.evt.emit('trade_fetch', trade)
-            self.evt.emit('trade_fetch', (None, ) * 6) # end
+            # Indicate end of fetch.
+            self.evt.emit('trade_fetch', common.TRADE_EMPTY)
         elif name.endswith('money/depth/fetch') or name.endswith(
                 'money/depth/full'):
             # Result from depth_fetch or depth_full method.
@@ -260,8 +261,9 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
                 for order in result[entry]:
                     price = Decimal(order['price_int']) / factor
                     amount = Decimal(order['amount_int']) / coin
-                    self.evt.emit('depth_fetch', (typ, price, amount))
-            self.evt.emit('depth_fetch', (None, None, None))
+                    self.evt.emit('depth_fetch', Depth(typ, price, amount))
+            # Indicate end of fetch.
+            self.evt.emit('depth_fetch', common.DEPTH_EMPTY)
         else:
             rtype = name.replace('/', '_')
             print("Emitting result event for %s" % rtype)
@@ -318,14 +320,16 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         status = order['status']
         otype = order['type']
 
-        return (oid, otype, timestamp, status, price, amount, currency, coin)
+        return common.Order(oid, otype, timestamp, status, price, amount,
+                            '%s_%s' % (currency, coin))
 
     def _handle_private_user_order(self, order):
         if 'item' in order:
             self.evt.emit('userorder', self._extract_order(order))
         else:
-            self.evt.emit('userorder', (order['oid'], None, None, 'removed',
-                None, None, None, None))
+            removed_order = Order(order['oid'], None, None, 'removed',
+                    None, None, None)
+            self.evt.emit('userorder', removed_order)
 
 
     def _handle_private_wallet(self, wallet):
@@ -426,7 +430,7 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
     def __init__(self, key, secret, currency, http_api, coin='BTC', **kwargs):
         WebSocketClientFactory.__init__(self, **kwargs)
 
-        self.evt = ExchangeEvent(eventprefix="//mtgox")
+        self.evt = common.ExchangeEvent(eventprefix="//mtgox")
         self.key = binascii.unhexlify(key.replace('-', ''))
         self.secret = base64.b64decode(secret)
         self.currency = currency
@@ -557,7 +561,7 @@ def create_client(key='', secret='', currency="USD", secure=True,
 
     factory = MtgoxFactoryClient(key, secret, currency.upper(),
             http_api_url, url="%s%s%s" % (ws_addr, ws_path, currency),
-            useragent="%s\x0d\x0aOrigin: %s" % (USER_AGENT, ws_origin),
+            useragent="%s\x0d\x0aOrigin: %s" % (common.USER_AGENT, ws_origin),
             debug=debug, debugCodePaths=debug)
     factory.setProtocolOptions(version=13)
 

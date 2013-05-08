@@ -1,5 +1,6 @@
 import os
 from decimal import Decimal
+from collections import namedtuple
 from twisted.internet import reactor, task
 from twisted.words.xish.utility import EventDispatcher
 
@@ -17,6 +18,39 @@ def currency_factor(currency):
     if cur not in CURRENCY_FACTOR:
         return CURRENCY_DEFAULT_FACTOR
     return CURRENCY_FACTOR[cur]
+
+# Common format for events expected to be used by the different
+# implementations.
+
+# Currently, the currencies involved in a trade are determined
+# by the application.
+Trade = namedtuple('Trade', [
+    'id',         # trade id
+    'timestamp',  # trade timestamp
+    'type',       # either 'a' (ask) or 'b' (buy) trade
+    'price',      # value received/paid
+    'amount'      # amount sold/bought
+    ])
+TRADE_EMPTY = Trade(None, None, None, None, None)
+
+# An user order.
+Order = namedtuple('Order', [
+    'id',         # order id
+    'timestamp',  # order timestamp
+    'type',       # either 'a' (ask) or 'b' (buy) order
+    'status',     # order status
+    'price',      # value for selling/buying
+    'amount',     # amount being sold/bought
+    'pair'        # 'x_y': currencies used for buying and receiving
+    ])
+
+# Depth data.
+Depth = namedtuple('Depth', [
+    'type',       # (b)id/(a)sk depth item
+    'price',      # item price
+    'volume'      # volume at price
+    ])
+DEPTH_EMPTY = Depth(None, None, None)
 
 
 class ExchangeEvent(EventDispatcher):
