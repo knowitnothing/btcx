@@ -148,7 +148,7 @@ class BTCe(HTTPAPI):
         return result
 
 
-def create_client(key, secret, addr="https://btc-e.com",
+def create_client(key='', secret='', addr="https://btc-e.com",
         debug=False, extradebug=False):
 
     if extradebug:
