@@ -261,7 +261,8 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
                 for order in result[entry]:
                     price = Decimal(order['price_int']) / factor
                     amount = Decimal(order['amount_int']) / coin
-                    self.evt.emit('depth_fetch', Depth(typ, price, amount))
+                    depth = common.Depth(typ[0], price, amount)
+                    self.evt.emit('depth_fetch', depth)
             # Indicate end of fetch.
             self.evt.emit('depth_fetch', common.DEPTH_EMPTY)
         else:
@@ -277,7 +278,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
             return
 
         coin = depth["item"]
-        dtype = depth["type_str"]
+        dtype = depth["type_str"][0]
         volume = Decimal(depth["total_volume_int"]) / CURRENCY_FACTOR[coin]
         factor = currency_factor(currency)
         price = Decimal(depth["price_int"]) / factor
