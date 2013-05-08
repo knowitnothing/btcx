@@ -207,7 +207,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         if currency != self.currency or trade['primary'].lower() != 'y':
             # Ignore trades in different currency or that are not
             # primary.
-            return (tid, None, None, None, None)
+            return common.Trade(tid, None, None, None, None)
 
         timestamp = int(trade['date'])
         ttype = trade['trade_type'][0]
