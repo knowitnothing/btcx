@@ -6,7 +6,7 @@ import sys
 from decimal import Decimal
 from twisted.python import log
 
-from common import ExchangeEvent
+import common
 from http import HTTPAPI
 
 
@@ -14,7 +14,7 @@ class Bitstamp(HTTPAPI): # XXX Only public data for the moment.
 
     def __init__(self, key, secret, host):
         super(Bitstamp, self).__init__(host)
-        self.evt = ExchangeEvent(eventprefix="//bitstamp")
+        self.evt = common.ExchangeEvent(eventprefix="//bitstamp")
 
 
     # Public API
@@ -33,10 +33,7 @@ class Bitstamp(HTTPAPI): # XXX Only public data for the moment.
 
     def transactions(self, timedelta=86400):
         """Obtain transactions for the last timedelta seconds."""
-        self.call('api/transactions', lambda result, _:
-                # XXX Format.
-                self.evt.emit('trades', result) if result else None,
-                timedelta=timedelta)
+        self.call('api/transactions', self._handle_transactions)
 
     def reserves(self):
         """Obtain the Bitinstant USD reserves."""
@@ -49,6 +46,14 @@ class Bitstamp(HTTPAPI): # XXX Only public data for the moment.
         self.call('api/eur_usd', lambda result, _:
                 self.evt.emit('eur_usd', (
                     Decimal(result['buy']), Decimal(result['sell']))))
+
+    def _handle_transactions(self, data, url):
+        for item in reversed(data): # From oldest to newest.
+            trade = common.Trade(item['tid'], int(item['date']), '',
+                                 Decimal(item['price']),
+                                 Decimal(item['amount']))
+            self.evt.emit('trade_fetch', trade)
+        self.evt.emit('trade_fetch', common.TRADE_EMPTY)
 
     # XXX Missing private.
 

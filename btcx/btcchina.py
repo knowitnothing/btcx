@@ -3,9 +3,10 @@
 from __future__ import print_function
 
 import sys
+from decimal import Decimal
 from twisted.python import log
 
-from common import ExchangeEvent
+import common
 from http import HTTPAPI
 
 
@@ -13,7 +14,7 @@ class BTCChina(HTTPAPI): # XXX Only public data for the moment.
 
     def __init__(self, key, secret, host):
         super(BTCChina, self).__init__(host)
-        self.evt = ExchangeEvent(eventprefix="//btcchina")
+        self.evt = common.ExchangeEvent(eventprefix="//btcchina")
 
 
     # Public API
@@ -27,9 +28,16 @@ class BTCChina(HTTPAPI): # XXX Only public data for the moment.
                 self.evt.emit('ticker', result['ticker']))
 
     def trades(self):
+        self.call('bc/trades', self._handle_trades)
+
+    def _handle_trades(self, data, url):
         # A list of trades. Each item contains date, price, amount, tid.
-        self.call('bc/trades', lambda result, _:
-                self.evt.emit('trades', result))
+        for item in data:
+            trade = common.Trade(int(item['tid']), int(item['date']), '',
+                                 Decimal(str(item['price'])),
+                                 Decimal(str(item['amount'])))
+            self.evt.emit('trade_fetch', trade)
+        self.evt.emit('trade_fetch', common.TRADE_EMPTY)
 
     # XXX Not sure what is missing.
 
