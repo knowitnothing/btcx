@@ -22,6 +22,7 @@ from autobahn.websocket import (WebSocketProtocol, WebSocketClientProtocol,
 
 
 from common import USER_AGENT, ExchangeEvent, CURRENCY_FACTOR, currency_factor
+from http import HTTPAPI
 
 
 def calc_tid(hours_ago):
@@ -31,16 +32,16 @@ def calc_tid(hours_ago):
     return int(now - (hours_ago * (one_second * 60 * 60)))
 
 
-class MtgoxProtocol(WebSocketClientProtocol):
+class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
 
     def __init__(self, evt, key, secret, currency, coin, http_api):
+        HTTPAPI.__init__(self, http_api)
 
         self.evt = evt
         self.key = key
         self.secret = secret
         self.currency = currency
         self.coin = coin
-        self.http_api = http_api
 
         self.subscribed_channel = {}
 
@@ -97,19 +98,8 @@ class MtgoxProtocol(WebSocketClientProtocol):
         return req_id
 
     def http_public_call(self, endpoint, version=2, **kwargs):
-        #print('calling %s/%d/%s' % (self.http_api, version, endpoint), kwargs)
-        headers = Headers({"User-Agent": [USER_AGENT]})
-        d = treq.get('%s/%d/%s' % (self.http_api, version, endpoint),
-                params=kwargs, headers=headers)
-        d.addCallback(lambda response:
-                self._handle_http_api(response, endpoint))
-
-    def _handle_http_api(self, response, endpoint): # Take **kwargs too XXX
-        d = treq.json_content(response)
-        d.addCallback(self._handle_result, endpoint)
-        d.addErrback(lambda err, endpoint:
-                print("Error when calling %s: %s" % (endpoint,
-                    err.getBriefTraceback())), endpoint)
+        urlpart = '/%d/%s' % (version, endpoint)
+        self.call(urlpart, self._handle_result, **kwargs)
 
 
     # Helper/semiAPI functions
@@ -217,16 +207,16 @@ class MtgoxProtocol(WebSocketClientProtocol):
         if currency != self.currency or trade['primary'].lower() != 'y':
             # Ignore trades in different currency or that are not
             # primary.
-            return (tid, None, None, None, None, None)
+            return (tid, None, None, None, None)
 
         timestamp = int(trade['date'])
-        ttype = trade['trade_type']
+        ttype = trade['trade_type'][0]
         factor = currency_factor(currency)
         price = Decimal(trade['price_int']) / factor
         coin = trade['item']
         amount = Decimal(trade['amount_int']) / CURRENCY_FACTOR[coin]
 
-        return (tid, timestamp, ttype, price, amount, coin)
+        return (tid, timestamp, ttype, price, amount)
 
 
     def _handle_result(self, result, req_id):

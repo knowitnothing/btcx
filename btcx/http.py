@@ -22,5 +22,5 @@ class HTTPAPI(object):
         d = treq.json_content(response)
         d.addCallback(cb, *args)
         errcb = lambda err, *args: print("Error when calling %s: %s" % (
-            ' '.join(args), err.getErrorMessage()))
+            ' '.join(args), err.getBriefTraceback()))
         d.addErrback(errcb, *args)
