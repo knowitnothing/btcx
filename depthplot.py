@@ -60,7 +60,7 @@ class PlotDepth(QG.QWidget):
         self.timer_clean = QC.QTimer()
         self.timer_clean.timeout.connect(self._clean_db)
         # Remove unused/old data from in-memory database each n seconds.
-        self.timer_clean.start(15 * 1000)
+        self.timer_clean.start(5 * 1000)
 
 
     def _clean_db(self):
@@ -72,7 +72,7 @@ class PlotDepth(QG.QWidget):
                 SELECT a.price FROM bid a
                 WHERE ((SELECT b.price FROM bid b ORDER BY b.price DESC
                         LIMIT 1) - a.price) > ?)""", (
-                            self.price_factor * self.price_threshold,
+                            self.price_factor * 2*self.price_threshold,
                             )).rowcount
         print("  Bids removed:", dnum)
 
@@ -82,7 +82,7 @@ class PlotDepth(QG.QWidget):
                 SELECT a.price FROM ask a
                 WHERE (a.price - (SELECT b.price FROM ask b ORDER BY b.price
                         ASC LIMIT 1)) > ?)""", (
-                            self.price_factor * self.price_threshold,
+                            self.price_factor * 2*self.price_threshold,
                             )).rowcount
         print("  Asks removed:", dnum)
 

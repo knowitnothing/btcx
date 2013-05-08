@@ -2,5 +2,5 @@ dep/*
 *.pyc
 *.swp
 *.db
+*.h5
 btcx.cfg
-.gitignore
