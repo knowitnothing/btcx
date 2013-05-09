@@ -128,9 +128,10 @@ class SimplePlot(QG.QWidget):
         ylim = self.ylim[plotname][linename]
         i = self.last_xi[plotname, linename]
 
-        line.set_data(xdata[:i], ydata[:i])
-        ylim[0] = ydata[:i].min()
-        ylim[1] = ydata[:i].max()
+        if i:
+            line.set_data(xdata[:i], ydata[:i])
+            ylim[0] = ydata[:i].min()
+            ylim[1] = ydata[:i].max()
 
         yl = [float('inf'), float('-inf')]
         for yli in self.ylim[plotname].itervalues():
