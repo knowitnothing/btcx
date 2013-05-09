@@ -58,21 +58,26 @@ class BTCe(HTTPAPI):
     # BTC-e API
 
     # Public
-    def fee(self, coin='btc', currency='usd'):
-        coin = coin.lower()
-        currency = currency.lower()
-        self.call('api/2/%s_%s/fee' % (coin, currency),
+    def fee(self, p1='btc', p2='usd'):
+        p1, p2 = p1.lower(), p2.lower()
+        self.call('api/2/%s_%s/fee' % (p1, p2),
                 lambda data, _: self.evt.emit('fee', data))
 
-    def trades(self, coin='btc', currency='usd'):
-        coin = coin.lower()
-        currency = currency.lower()
-        self.call('api/2/%s_%s/trades' % (coin, currency), self._handle_trades)
+    def ticker(self, p1='btc', p2='usd'):
+        p1, p2 = p1.lower(), p2.lower()
+        self.call('api/2/%s_%s/ticker' % (p1, p2),
+                lambda data, _: self.evt.emit('ticker', data['ticker']))
 
-    def depth(self, coin='btc', currency='usd'):
-        coin = coin.lower()
-        currency = currency.lower()
-        self.call('api/2/%s_%s/depth' % (coin, currency), self._handle_depth)
+    def trades(self, p1='btc', p2='usd'):
+        # For each trade fetched, an 'trade_fetch' event will be emitted.
+        p1, p2 = p1.lower(), p2.lower()
+        self.call('api/2/%s_%s/trades' % (p1, p2), self._handle_trades)
+
+    def depth(self, p1='btc', p2='usd'):
+        # For each item from depth fetched, an 'depth_fetch' event will be
+        # emitted.
+        p1, p2 = p1.lower(), p2.lower()
+        self.call('api/2/%s_%s/depth' % (p1, p2), self._handle_depth)
 
     def _handle_trades(self, data, url):
         for trade in reversed(data): # Return from older to most recent.
@@ -96,30 +101,31 @@ class BTCe(HTTPAPI):
     def get_info(self):
         self.signed_call('getInfo', self._generic_cb('info'))
 
-    def trans_history(self, from_=0, count=1000, from_id=0, end_id=None,
-            order=None, since=0, end=None):
-        params = {'from': from_, 'count': count, 'from_id': from_id, 'since': 0}
-        if end_id: params['end_id'] = end_id
-        if end: params['end'] = end
-        if order: params['order'] = order
+    def trans_history(self, **kwargs):
+        """
+        Accepted keywords: from, count, from_id, end_id, order, since, end
+        """
+        params = dict((k.rstrip('_'), v) for k, v in kwargs.iteritems())
         self.signed_call('TransHistory', self._generic_cb('trans_hist'),
                 **params)
 
     def trade_history(self, **kwargs):
-        # Accepted keywords: from, count, from_id, end_id, order, since,
-        #                    end, pair
+        """
+        Accepted keywords: from, count, from_id, end_id, order, since,
+                           end, pair
+        """
         params = dict((k.rstrip('_'), v) for k, v in kwargs.iteritems())
-        self.signed_call('TradeHistory', self._generic_cb('trade_fetch'),
+        self.signed_call('TradeHistory', self._generic_cb('trade_hist'),
                 **params)
 
-    def order_list(self, from_=0, count=1000, from_id=0, end_id=None,
-            order=None, since=0, end=None, pair=None, active=1):
-        params = {'from': from_, 'count': count, 'from_id': from_id,
-                  'since': 0}
-        if end_id: params['end_id'] = end_id
-        if end: params['end'] = end
-        if order: params['order'] = order
-        if pair: params['pair'] = pair
+    def order_list(self, **kwargs):
+        """
+        Accepted keywords: from, count, from_id, end_id, order, since,
+                           end, pair, active
+
+        Requests a list of open orders.
+        """
+        params = dict((k.rstrip('_'), v) for k, v in kwargs.iteritems())
         self.signed_call('OrderList', self._generic_cb('order_list'), **params)
 
     def order_cancel(self, oid):

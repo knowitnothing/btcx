@@ -191,7 +191,7 @@ def main(key, secret):
     btce_client = btce.create_client()
     btce_client.evt.listen('trade_fetch', plot.btce_trade)
     # Get the last trades each x seconds.
-    btce_pool = task.LoopingCall(btce_client.trades, currency=currency)
+    btce_pool = task.LoopingCall(btce_client.trades, p2=currency)
     btce_pool.start(10) # x seconds
 
     btcchina_cli = btcchina.create_client()
