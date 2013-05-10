@@ -16,8 +16,10 @@ After running `./deps.sh`, do (the equivalent of) the following:
 
 	$ PYTHONPATH=dep python2.7
 
-	>>> import btcx
-	>>>
+```
+>>> import btcx
+>>>
+```
 
 If  no messages  are shown,  then  you can  run it.  Next, two  simple
 examples are presented in a wordy fashion.
@@ -29,40 +31,52 @@ Two very simple examples
 Our first example will query  certain currencies through the Streaming
 API from MtGox. This involves importing `btcx`
 
-	import btcx
+```python
+import btcx
+```
 
 creating a MtGox client
 
-	client = btcx.mtgox.create_client()
+```python
+client = btcx.mtgox.create_client()
+```
 
 telling the client  to listen for events  "currency\_info", which will
 call into  a function  whenever they  are emitted.  To do  this, first
 create a function to handle such event and then define the listener
 
-	def got_currency(data):
-		print (u"{name:17}: {symbol:4}   "
-		   	   u"Decimals : {decimals}   "
-		   	   u"Virtual : {virtual}".format(**data))
+```python
+def got_currency(data):
+    print (u"{name:17}: {symbol:4}   "
+           u"Decimals : {decimals}   "
+           u"Virtual : {virtual}".format(**data))
 
-	client.evt.listen('currency_info', got_currency)
+client.evt.listen('currency_info', got_currency)
+```
 
 In this example we will query  the symbols 'EUR', 'BTC', 'JPY', 'AUD',
 and 'LTC'
 
-	currencies = ['EUR', 'BTC', 'JPY', 'AUD', 'LTC']
+```python
+currencies = ['EUR', 'BTC', 'JPY', 'AUD', 'LTC']
+```
 
 for each one of them, we need to call the "currency\_info" method that
 becomes available after the client  connects. This is handled by using
 the  `call` method  from  the client,  which by  default  waits for  a
 "connected" event and then makes the requested call.
 
-	for currency in currencies:
-    		client.call('currency_info', currency, once=True)
-        	print "Will ask for %s" % currency
+```python
+for currency in currencies:
+    client.call('currency_info', currency, once=True)
+    print "Will ask for %s" % currency
+```
 
 Finally we start the event loop and things actually start happening
 
-	btcx.run()
+```python
+btcx.run()
+```
 
 Note that  the example is very  short, do not let  the step-wise build
 fool you.  You will observe  that every call returns immediately, this
@@ -78,19 +92,21 @@ before being  stored, so a  password is required for  later decrypting
 it. The password is not  stored anywhere and forgetting it practically
 means the API secret is lost (i.e., not recoverable).
 
-	import sys
+```python
+import sys
 
-	import btcx
+import btcx
 
-	def show_userorder(order):
-		print order
+def show_userorder(order):
+	print order
 
-	key, secret = btcx.cfgmanager.obtain_key_secret(sys.argv[1:])
-	client = btcx.mtgox.create_client(key, secret)
-	client.evt.listen('userorder', show_userorder)
-	client.call('order_list')
+key, secret = btcx.cfgmanager.obtain_key_secret(sys.argv[1:])
+client = btcx.mtgox.create_client(key, secret)
+client.evt.listen('userorder', show_userorder)
+client.call('order_list')
 
-	btcx.run()
+btcx.run()
+```
 
 
 Dependencies
