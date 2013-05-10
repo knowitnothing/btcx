@@ -4,6 +4,9 @@
 #  * scrypt: used for storing API key secret or any other sensitive data
 #  * autobahn: Websocket for Twisted, used for MtGox
 #  * treq: simple way for making HTTP requests through Twisted
+#
+#  Not used in the master branch for now:
+#  * pandas: efficient handling of time series and co.
 #  * tables: used for wrapping HDF5 storage (aka PyTables)
 #    * numexpr: PyTables dependency
 #    + HDF5 library: PyTables depends on it, build manually if needed

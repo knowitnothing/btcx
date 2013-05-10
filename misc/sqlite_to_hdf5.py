@@ -1,67 +1,42 @@
 import os
 import sys
+import pandas
 import sqlite3
-from decimal import Decimal
-
-import tables
-
-from btcx.common import currency_factor
+from pandas.io import sql as psql
 
 
-def export_sqlite_table(db, table, outh5, currency='usd'):
-    factor = currency_factor(currency)
+DB = sys.argv[1]
+TABLE = 'btcusd'
 
-    mapping = { # column name: mapped data type
-            'tid': tables.Int64Col(pos=1),
-            'timestamp': tables.Time32Col(pos=2),
-            'ttype': tables.StringCol(1, pos=3), # a(sk) / b(id)
-            'price': tables.UInt64Col(pos=4),
-            'amount': tables.UInt64Col(pos=5)
-            }
+h5_name = os.path.splitext(DB)[0]
+h5_group = '%s_%s' % (h5_name, TABLE)
 
-    column = {'tid': int, 'timestamp': int,
-              'ttype': lambda x: str(x)[0] if x else x,
-              'price': lambda x: Decimal(x) * factor,
-              'amount': lambda x: Decimal(x) * factor}
+store = pandas.HDFStore('%s.h5' % h5_name)
 
-    column_order = [None] * len(mapping)
-    for data in db.execute('PRAGMA table_info([%s])' % table):
-        order, name = data[:2] # PRIMARY KEY info might be useful too ?
-        column_order[order] = name.encode('utf8')
+storer = store.get_storer('/%s' % h5_group)
+if storer is not None:
+    # Already stored something, grab last transaction tid.
+    last_item = store.select(h5_group, start=storer.nrows - 1)
+    last_tid = int(last_item.index[0][1])
+else:
+    last_tid = -1 # all-time data. This might take some time.
 
-    hdf5 = tables.openFile(outh5, mode='w')
-    root = hdf5.root
+db = sqlite3.connect(DB, detect_types=sqlite3.PARSE_COLNAMES)
+db.text_factory = str
+query = """SELECT datetime(timestamp, 'unixepoch') as "ts [timestamp]",
+        CAST(price as FLOAT) as price, CAST(amount as FLOAT) as volume, tid
+        FROM [%s] WHERE tid > ? ORDER BY tid ASC LIMIT 5000""" % TABLE
 
-    mtgox = hdf5.createGroup(root, 'mtgox_trades')
-    btcusd = hdf5.createTable(mtgox, table, mapping, expectedrows=5e6)
-    btcusd.cols.tid.createIndex()
-    btcusd.cols.timestamp.createIndex()
-    btcusd_row = btcusd.row
+while True:
+    dataframe = psql.frame_query(query, con=db, params=(last_tid, ),
+            index_col=['ts', 'tid'])
 
-    print "Now be patient.."
-    count = 0
-    for data in db.execute('SELECT * FROM [%s]' % table):
-        for di, co in zip(data, column_order):
-            btcusd_row[co] = column[co](di)
-        btcusd_row.append()
+    if not len(dataframe) or last_tid == dataframe.index[-1][1]:
+        print "Done"
+        break
 
-        if not count % 1e4:
-            sys.stdout.write('.')
-            sys.stdout.flush()
-        count += 1
-    print "Done!"
+    print last_tid, dataframe.index[-1][1], len(dataframe)
+    store.append(h5_group, dataframe)
+    last_tid = int(dataframe.index[-1][1])
 
-    btcusd.flush()
-    hdf5.close()
-
-
-if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print "Usage: %s somesqlite.db table out.h5" % sys.argv[0]
-        print "  * Result will be written to out.h5 with group 'mtgox_trades'"
-        print "    and a table of specified name"
-        raise SystemExit
-
-    dbname, tablename, out_h5 = sys.argv[1:]
-    db = sqlite3.connect(dbname)
-    export_sqlite_table(db, tablename, out_h5)
+store.close()
