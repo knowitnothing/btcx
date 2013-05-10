@@ -11,6 +11,7 @@ class Config(object):
     def __init__(self, cfgname='btcx.cfg'):
         self.cfgname = cfgname
         self.cfg = None
+        self.load_config()
 
     def load_config(self):
         with open(self.cfgname, 'a+b') as f:
@@ -54,6 +55,9 @@ class Config(object):
         exchange, the old pair is replaced.
         """
         exchanges = self.cfg['exchange']
+        if exchange not in exchanges:
+            # Adding a new exchange
+            exchanges[exchange] = {}
         exc = exchanges[exchange]
         exc[keyname] = {'key': key, 'secret': enc_sec}
         self.rewrite()
@@ -82,7 +86,6 @@ def loop_ask(func, msg):
 
 def obtain_key_secret(argl, **kwargs):
     cfgman = Config(**kwargs)
-    cfgman.load_config()
 
     if len(argl) == 1 and argl[0] == "-n":
         print "Setting up new key/secret pair"
