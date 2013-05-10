@@ -118,7 +118,11 @@ def plot_sf_stats(top, ax, fig, factor):
         x.append(key)
         total.append(val['total'] / factor)
         for data, name in zip(other, top):
-            data.append(val[name] / factor)
+            if name in val:
+                data.append(val[name] / factor)
+            else:
+                print '%s missing at %s' % (name, key)
+                data.append(0)
 
     ax.xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d'))
     # Labels on mondays.
