@@ -21,8 +21,9 @@ After running `./deps.sh`, do (the equivalent of) the following:
 >>>
 ```
 
-If  no messages  are shown,  then  you can  run it.  Next, two  simple
-examples are presented in a wordy fashion.
+If  no messages  are shown,  then you  can run  it.  Next,  two simple
+examples are presented  in a wordy fashion assuming  some knowledge of
+event-driven systems.
 
 
 Two very simple examples
@@ -80,8 +81,8 @@ btcx.run()
 
 Note that  the example is very  short, do not let  the step-wise build
 fool you.  You will observe  that every call returns immediately, this
-is mainly due to how Twisted  works. The example will run forever, you
-can finish it by pressing Ctrl+C.
+is  mainly due  to  how  Twisted works.  This  example  (and also  the
+following) will run forever, you can finish it by pressing Ctrl+C.
 
 The second  example requires  authentication in  order to  request the
 pending  orders  as   well  live  updates  as  the   user  orders  are
@@ -107,6 +108,21 @@ client.call('order_list')
 
 btcx.run()
 ```
+
+Other examples  involving different  exchanges and other  features are
+presented in
+
++ `demo_1.py` plots live trades from MtGox, BTC-e, Bitstamp, and BTCChina
+
++ `demo_2.py` fetches MtGox trades and stores in a sqlite database
+
++ `demo_4.py` does a candlestick  plot together with trade volume from
+MtGox.  This will  load and  store data  as needed.  It combines  live
+trades through the  Streaming API, stored trades in  the database, and
+also fetching older trades through the MtGox's HTTP API.
+
++  `demo_7.py` plots  the depth  market. The  demo starts  by fetching
+partial data, and then corrects it as live changes are received.
 
 
 Dependencies
