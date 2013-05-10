@@ -5,6 +5,7 @@ from twisted.internet import reactor
 import btce
 import mtgox
 import bitstamp
+import btcchina
 import cfgmanager
 from version import __version__, VERSION
 

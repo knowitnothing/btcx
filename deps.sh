@@ -17,8 +17,8 @@ EASY_INSTALL="easy_install-2.7"
 # For PyTables, adjust as needed.
 HDF5_DIR="/opt/local"
 
-for dep in scrypt autobahn treq #pandas numexpr tables
+for dep in scrypt twisted autobahn treq #pandas numexpr tables
 do
-  HDF5_DIR=${HDF5_DIR} PYTHONPATH=${DEST_DIR} ${EASY_INSTALL} \
+  HDF5_DIR=${HDF5_DIR} PYTHONPATH=${DEST_DIR} ${EASY_INSTALL} -Z \
 	  --install-dir=${DEST_DIR} ${dep}
 done
