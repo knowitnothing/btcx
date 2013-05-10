@@ -184,8 +184,6 @@ def main(key, secret):
     mtgox_client.evt.listen('lag', plot.mtgox_lag)
     mtgox_client.evt.listen('ticker', plot.mtgox_vol)
 
-    mtgox.start(mtgox_client)
-
     btce_client = btce.create_client()
     btce_client.evt.listen('trade_fetch', plot.btce_trade)
     # Get the last trades each x seconds.

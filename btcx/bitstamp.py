@@ -58,10 +58,5 @@ class Bitstamp(HTTPAPI): # XXX Only public data for the moment.
     # XXX Missing private.
 
 
-def create_client(key='', secret='', addr='https://www.bitstamp.net',
-        debug=False, extradebug=False):
-
-    if extradebug:
-        log.startLogging(sys.stdout)
-
+def create_client(key='', secret='', addr='https://www.bitstamp.net'):
     return Bitstamp(key, secret, addr)

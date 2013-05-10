@@ -162,16 +162,5 @@ class BTCe(HTTPAPI):
         return result
 
 
-def create_client(key='', secret='', addr="https://btc-e.com",
-        debug=False, extradebug=False):
-
-    if extradebug:
-        log.startLogging(sys.stdout)
-
-    btce = BTCe(key, secret, addr)
-    return btce
-
-def start(*args):
-    # This intentionally does nothing. Consider it as a uniformity
-    # layer among the different APIs.
-    pass
+def create_client(key='', secret='', addr="https://btc-e.com"):
+    return BTCe(key, secret, addr)

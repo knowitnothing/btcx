@@ -16,7 +16,6 @@ def main():
     mtgox_client, tradefetch, db = mtgox_tradehist.setup_client(
             verbose=1, max_hours_ago=None)
     mtgox_client.evt.listen('done', lambda _: reactor.stop())
-    mtgox.start(mtgox_client)
     reactor.run()
 
 if __name__ == "__main__":

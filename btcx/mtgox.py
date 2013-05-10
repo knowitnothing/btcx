@@ -569,10 +569,7 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory,
 
 def create_client(key='', secret='', currency="USD", secure=True,
         addr="websocket.mtgox.com", http_addr="data.mtgox.com/api",
-        debug=False, extradebug=False):
-
-    if extradebug:
-        log.startLogging(sys.stdout)
+        debug_websocket=False):
 
     port = 443 if secure else 80
     ws_origin = "%s:%d" % (addr, port)
@@ -584,10 +581,9 @@ def create_client(key='', secret='', currency="USD", secure=True,
     factory = MtgoxFactoryClient(key, secret, currency.upper(),
             http_api_url, url="%s%s%s" % (ws_addr, ws_path, currency),
             useragent="%s\x0d\x0aOrigin: %s" % (common.USER_AGENT, ws_origin),
-            debug=debug, debugCodePaths=debug)
+            debug=debug_websocket, debugCodePaths=debug_websocket)
     factory.setProtocolOptions(version=13)
 
-    return factory
-
-def start(factory):
     connectWS(factory, timeout=5)
+
+    return factory

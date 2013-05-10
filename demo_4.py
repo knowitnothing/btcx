@@ -174,8 +174,6 @@ def main():
     # Nice eh ?
 
 
-    mtgox.start(mtgox_client)
-
     print('Showing GUI..')
     plot.show()
     plot.raise_()

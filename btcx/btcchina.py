@@ -42,11 +42,5 @@ class BTCChina(HTTPAPI): # XXX Only public data for the moment.
     # XXX Not sure what is missing.
 
 
-
-def create_client(key='', secret='', addr='https://btcchina.com/',
-        debug=False, extradebug=False):
-
-    if extradebug:
-        log.startLogging(sys.stdout)
-
+def create_client(key='', secret='', addr='https://btcchina.com/'):
     return BTCChina(key, secret, addr)

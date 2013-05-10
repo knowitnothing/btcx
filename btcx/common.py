@@ -1,6 +1,7 @@
 import os
 from decimal import Decimal
 from collections import namedtuple
+from twisted.python import log
 from twisted.internet import reactor, task
 from twisted.words.xish.utility import EventDispatcher
 
@@ -134,9 +135,9 @@ class CallOnEvent(object):
         listen_func(event, lambda ignored: call_func(event, func, args))
 
     def _call(self, event, func, args):
-        print("Client-Calling %s%s due to event %s" % (func, args, event))
+        log.msg("Client-Calling %s%s due to event %s" % (func, args, event))
         getattr(self.client, func)(*args)
 
     def _callback(self, event, func, args):
-        print("Calling %s%s due to event %s" % (func, args, event))
+        log.msg("Calling %s%s due to event %s" % (func, args, event))
         func(*args)

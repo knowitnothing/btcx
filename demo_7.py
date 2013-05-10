@@ -78,7 +78,6 @@ def main(key, secret):
     demo = Demo(plot, currency)
 
     cli = mtgox.create_client(key, secret, currency)
-    mtgox.start(cli)
 
     cli.evt.listen('depth_fetch', demo.depth_fetch)
     cli.evt.listen('depth', demo.depth_live)
