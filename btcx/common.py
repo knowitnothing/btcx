@@ -121,23 +121,33 @@ class CallOnEvent(object):
     """
 
     def call(self, func, *args, **kwargs):
-        event = kwargs.get('on_event', 'connected') # Call on this event.
+        event = kwargs.pop('on_event', 'connected') # Call on this event.
+        once = kwargs.pop('once', False) # Call only once (listen once).
         # If the function name is a string, then we should call it
         # through the client. Otherwise it is any kind of object that
         # is used as a callback.
         client = True if isinstance(func, str) else False
-        once = kwargs.get('once', False) # Call only once (listen once).
 
         call_func = self._call if client else self._callback
         listen = 'listen_once' if once else 'listen'
         listen_func = getattr(self.evt, listen)
 
-        listen_func(event, lambda ignored: call_func(event, func, args))
+        x = lambda ignored: call_func(event, func, args, kwargs)
 
-    def _call(self, event, func, args):
-        log.msg("Client-Calling %s%s due to event %s" % (func, args, event))
-        getattr(self.client, func)(*args)
+        if isinstance(event, str): # Common case for the moment.
+            listen_func(event, x)
+            return
+        # Otherwise, event is assumed to be a sequence of events.
+        for evt in event:
+            listen_func(evt, x)
 
-    def _callback(self, event, func, args):
-        log.msg("Calling %s%s due to event %s" % (func, args, event))
-        func(*args)
+
+    def _call(self, event, func, args, kwargs):
+        log.msg("Client-Calling %s%s %s due to event %s" % (
+            func, args, kwargs, event))
+        getattr(self.client, func)(*args, **kwargs)
+
+    def _callback(self, event, func, args, kwargs):
+        log.msg("Calling %s%s %s due to event %s" % (
+            func, args, kwargs, event))
+        func(self.client, *args, **kwargs)

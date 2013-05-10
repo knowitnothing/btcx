@@ -17,7 +17,8 @@ class TradeFetchStore(object):
         self.table = table
         self.cursor = db.cursor()
         self.mtgox = mtgox_cli
-        self.mtgox.evt.listen('connected', self.load_from_last_stored)
+        self.mtgox.call(self.load_from_last_stored,
+                on_event=('connected', 'partial_download'))
         self.mtgox.evt.listen('trade_fetch', self.on_trade_fetch)
         self.cursor.execute("""SELECT tid FROM [%s]
                 ORDER BY tid DESC LIMIT 1""" % self.table)
@@ -33,10 +34,10 @@ class TradeFetchStore(object):
         if verbose:
             print(self.last_tid)
 
-    def load_from_last_stored(self, ignore=True):
+    def load_from_last_stored(self, client):
         if self.verbose:
             print("Loading from", self.last_tid)
-        self.mtgox.load_trades_since(tid=self.last_tid)
+        client.load_trades_since(tid=self.last_tid)
 
     def on_trade_fetch(self, trade):
         if trade.id is None:
@@ -51,7 +52,6 @@ class TradeFetchStore(object):
                 # Ask for more!
                 self.mtgox.evt.emit('partial_download', None)
                 self.prev_last = self.last_tid
-                self.mtgox.load_trades_since(tid=self.last_tid)
             return
 
         self.last_tid = max(self.last_tid, trade.id)

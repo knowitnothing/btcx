@@ -142,11 +142,11 @@ def main():
         tradefetch.store_trade(trade)
         task.deferLater(reactor, 0, plot.load_from_db)
 
-    def stop_accepting_trades():
+    def stop_accepting_trades(client):
         print("no more live trades for you")
         plot.loaded = False
 
-    def start_accepting_trades():
+    def start_accepting_trades(client):
         print("what is done is done")
         plot.load_from_db()
         plot.loaded = True

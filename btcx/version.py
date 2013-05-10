@@ -1,4 +1,4 @@
-__version__ = "0.1"
+__version__ = "0.1.2"
 
-VERSION = (0, 1, 0, "alone-in-the-dark")
+VERSION = (0, 1, 2, "alone-in-the-dark")
 
