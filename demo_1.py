@@ -19,8 +19,7 @@ from simpleplot import SimplePlot
 print("woof!")
 
 
-# Note: Avg is actually VWAP
-WINDOW_TITLE = u'MtGox - High: $ %(high)s - Low: $ %(low)s - Avg: $ %(avg)s'
+WINDOW_TITLE = u'MtGox - High: $ %(high)s - Low: $ %(low)s - VWAP: $ %(vwap)s'
 
 class Demo(QG.QMainWindow):
 
@@ -159,11 +158,11 @@ class Demo(QG.QMainWindow):
     def mtgox_lag(self, lag):
         self.plot.append_value(float(lag), 'lag', 'mtgox')
 
-    # XXX Next event to standardize: ticker
-    def mtgox_vol(self, (ask, bid, vwap, low, high, vol, coin)):
-        self.plot.append_value(float(vol), 'vol', 'mtgox')
+    def mtgox_vol(self, ticker):
+        self.plot.append_value(float(ticker.vol), 'vol', 'mtgox')
         # Show ticker data in window's title.
-        self.setWindowTitle(WINDOW_TITLE % {'high':high, 'low':low, 'avg':vwap})
+        self.setWindowTitle(WINDOW_TITLE % {
+            'high': ticker.high, 'low': ticker.low, 'vwap': ticker.vwap})
 
 
 def main(key, secret):
@@ -173,19 +172,18 @@ def main(key, secret):
 
     mtgox_client = mtgox.create_client(key, secret, currency)
     # After connecting, subscribe to the channels 'lag' and 'trades.
-    mtgox_client.evt.listen('connected', lambda _:
-            (mtgox_client.subscribe_type('lag'),
-             mtgox_client.subscribe_type('ticker'),
-             mtgox_client.subscribe_type('trades')))
+    for ch in ('lag', 'ticker', 'trades'):
+        mtgox_client.call('subscribe_type', ch)
     # The first time a connection is established, load some of the
     # last trades (it should be trades from 2 hours ago, but MtGox
     # does not actually send all of it).
-    mtgox_client.evt.listen_once('connected', lambda _:
-             mtgox_client.load_trades_since(hours_ago=2))
+    mtgox_client.call('load_trades_since', hours_ago=2, once=True)
     mtgox_client.evt.listen('trade_fetch', plot.mtgox_trade)
+    # Listen for events in the registered channels.
     mtgox_client.evt.listen('trade', plot.mtgox_trade)
     mtgox_client.evt.listen('lag', plot.mtgox_lag)
     mtgox_client.evt.listen('ticker', plot.mtgox_vol)
+
     mtgox.start(mtgox_client)
 
     btce_client = btce.create_client()

@@ -14,7 +14,6 @@ from twisted.internet import reactor, task
 
 # Own modules
 import mtgox_tradehist
-from coe import CallOnEvent
 from btcx import mtgox
 from candlechart import Candlestick
 print("woof!")
@@ -160,14 +159,13 @@ def main():
     # be stored as they come in.
     mtgox_client.evt.listen('trade', store_new_trade)
 
-    coe = CallOnEvent(mtgox_client)
     # Each time we connect, listen from trades.
-    coe.call('subscribe_type', 'trades', event='connected')
+    mtgox_client.call('subscribe_type', 'trades', on_event='connected')
     # After database is loaded, start storing new trades.
-    coe.call(start_accepting_trades, client=False, event='done')
+    mtgox_client.call(start_accepting_trades, on_event='done')
     # When we disconnect, we need to identify that we need to fetch
     # trades again once we reconnect.
-    coe.call(stop_accepting_trades, client=False, event='disconnected')
+    mtgox_client.call(stop_accepting_trades, on_event='disconnected')
     # Note that the object is listening for the 'connected' event
     # such that it will download the trades we missed while
     # disconnected and then emit a 'done' event after it has fetched

@@ -11,7 +11,6 @@ qt4reactor.install()
 from twisted.internet import reactor
 
 # Own modules
-from coe import CallOnEvent
 from btcx import mtgox, cfgmanager
 from depthplot import PlotDepth
 print("woof!")
@@ -85,11 +84,10 @@ def main(key, secret):
     cli.evt.listen('depth', demo.depth_live)
     cli.evt.listen('userorder', demo.userorder)
 
-    coe = CallOnEvent(cli)
-    coe.call('subscribe_type', 'depth') # Default event: connected.
-    coe.call('order_list')
+    cli.call('subscribe_type', 'depth') # Default event: connected.
+    cli.call('order_list')
     # If you do not wish to pre-load depth data, comment the following line.
-    coe.call('depth_fetch', once=True)
+    cli.call('depth_fetch', once=True)
 
     main.show()
     main.raise_()

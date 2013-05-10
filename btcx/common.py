@@ -52,6 +52,19 @@ Depth = namedtuple('Depth', [
     ])
 DEPTH_EMPTY = Depth(None, None, None)
 
+# Ticker data.
+Ticker = namedtuple('Ticker', [
+    'sell',       # Last sell price
+    'buy',        # Last buy price
+    'last',       # Last price
+    'low',        # Lowest price in a period (day for example)
+    'avg',        # Average price in a period
+    'high',       # Highest price in a period
+    'vol',        # Current volume
+    'vwap',       # Volume-weighted average price in a period
+    'pair'
+    ])
+
 
 class ExchangeEvent(EventDispatcher):
     def __init__(self, **kwargs):
@@ -93,3 +106,37 @@ class ExchangeEvent(EventDispatcher):
 
     def _gen_lid(self):
         return os.urandom(16)
+
+
+class CallOnEvent(object):
+    """
+    CallOnEvent is to be used as a mixin. It is expected that
+    the class inheriting it provides an ExchangeEvent instance
+    through instance.evt
+
+    The main intention of this class is to provide an easier way
+    to call into a protocol instance built by buildProtocol (i.e.,
+    not always available).
+    """
+
+    def call(self, func, *args, **kwargs):
+        event = kwargs.get('on_event', 'connected') # Call on this event.
+        # If the function name is a string, then we should call it
+        # through the client. Otherwise it is any kind of object that
+        # is used as a callback.
+        client = True if isinstance(func, str) else False
+        once = kwargs.get('once', False) # Call only once (listen once).
+
+        call_func = self._call if client else self._callback
+        listen = 'listen_once' if once else 'listen'
+        listen_func = getattr(self.evt, listen)
+
+        listen_func(event, lambda ignored: call_func(event, func, args))
+
+    def _call(self, event, func, args):
+        print("Client-Calling %s%s due to event %s" % (func, args, event))
+        getattr(self.client, func)(*args)
+
+    def _callback(self, event, func, args):
+        print("Calling %s%s due to event %s" % (func, args, event))
+        func(*args)

@@ -65,8 +65,8 @@ class BTCe(HTTPAPI):
 
     def ticker(self, p1='btc', p2='usd'):
         p1, p2 = p1.lower(), p2.lower()
-        self.call('api/2/%s_%s/ticker' % (p1, p2),
-                lambda data, _: self.evt.emit('ticker', data['ticker']))
+        self.call('api/2/%s_%s/ticker' % (p1, p2), self._handle_ticker,
+                pair=(p1, p2))
 
     def trades(self, p1='btc', p2='usd'):
         # For each trade fetched, an 'trade_fetch' event will be emitted.
@@ -78,6 +78,14 @@ class BTCe(HTTPAPI):
         # emitted.
         p1, p2 = p1.lower(), p2.lower()
         self.call('api/2/%s_%s/depth' % (p1, p2), self._handle_depth)
+
+    def _handle_ticker(self, data, url, pair):
+        data = data['ticker']
+        ticker = [data[key] for key in ('sell', 'buy', 'last', 'low', 'avg',
+            'high', 'vol')]
+        ticker.append(None) # No VWAP data.
+        ticker.append(pair)
+        self.evt.emit('ticker_fetch', common.Ticker(*ticker))
 
     def _handle_trades(self, data, url):
         for trade in reversed(data): # Return from older to most recent.

@@ -1,4 +1,5 @@
 # See https://en.bitcoin.it/wiki/MtGox/API/Streaming
+# Also see https://github.com/MtGox/mtgox-doc for the HTTP API
 
 from __future__ import print_function
 
@@ -58,7 +59,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
 
     def ping(self):
         if not self.ping_when:
-            print("PING (%s)" % self.ping_payload)
+            log.msg("PING (%s)" % self.ping_payload)
             self.ping_when = time.time()
             self.pong_task.start(self.ping_limit / 2.)
             self.sendPing(self.ping_payload)
@@ -166,39 +167,56 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
             params = {'since': calc_tid(hours_ago)}
 
         self.http_public_call('%s%s/money/trades/fetch' % (
-            self.coin, self.currency),
-            version=2, **params)
+            self.coin, self.currency), **params)
 
-    def depth_fetch(self):
+    def depth_fetch(self, p1=None, p2=None):
         """Request data regarding recent market depth."""
-        return self.http_public_call('%s%s/money/depth/fetch' % (
-            self.coin, self.currency), version=2)
+        p1 = self.coin if p1 is None else p1
+        p2 = self.currency if p2 is None else p2
+        return self.http_public_call('%s%s/money/depth/fetch' % (p1, p2))
 
-    def depth_full(self):
+    def depth_full(self, p1=None, p2=None):
         """
         Request complete data regarding market depth.
         Limit yourself to 5 requests per hour for this information (from docs).
         """
-        return self.http_public_call('%s%s/money/depth/full' % (
-            self.coin, self.currency), version=2)
+        p1 = self.coin if p1 is None else p1
+        p2 = self.currency if p2 is None else p2
+        return self.http_public_call('%s%s/money/depth/full' % (p1, p2))
+
+    def ticker_fetch(self, p1=None, p2=None):
+        p1 = self.coin if p1 is None else p1
+        p2 = self.currency if p2 is None else p2
+        return self.http_public_call('%s%s/money/ticker' % (p1, p2))
+
+    def currency_info(self, currency=None):
+        currency = self.currency if currency is None else currency
+        return self.http_public_call('generic/currency',
+                version=1, currency=currency)
 
 
     # Methods called to handle MtGox responses.
 
     def _handle_remark(self, data):
-        if not data["success"]:
-            # Some typical reasons:
-            # 'Method not found'
-            # 'Currency parameter is mandatory'
-            # 'Order amount is too low'
-            # ...
-            req_id = data["id"] if "id" in data else None
-            orig_data = None
-            if req_id in self.pending_scall:
-                orig_data = self.pending_scall.pop(req_id)
-            self.evt.emit('remark', (data['message'], req_id, orig_data))
+        if 'success' in data:
+            if not data["success"]:
+                # Some typical reasons:
+                # 'Method not found'
+                # 'Currency parameter is mandatory'
+                # 'Order amount is too low'
+                # ...
+                req_id = data["id"] if "id" in data else None
+                orig_data = None
+                if req_id in self.pending_scall:
+                    orig_data = self.pending_scall.pop(req_id)
+                self.evt.emit('remark', (data['message'], req_id, orig_data))
+            else:
+                print("Unknown successfull remark: %s" % repr(data))
+
         else:
-            print("Unknown successfull remark: %s" % repr(data))
+            # Currently this can only be a error from a HTTP API call.
+            msg = '%s: %s' % (data['result'].title(), data['error'])
+            self.evt.emit('remark', (msg, None, data['params']))
 
 
     def _extract_trade(self, trade):
@@ -219,7 +237,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         return common.Trade(tid, timestamp, ttype, price, amount)
 
 
-    def _handle_result(self, result, req_id):
+    def _handle_result(self, result, req_id, **kwargs):
         if req_id in self.pending_scall:
             query = self.pending_scall.pop(req_id)
             start = 1 if query['call'].startswith('/') else 0
@@ -227,10 +245,12 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         else:
             # Result from HTTP API
             name = req_id
-            # XXX Handle when result['result'] != 'success'
             if result['result'] != 'success':
-                print("HTTP API FAILED!", name, result)
-            result = result['data']
+                result['params'] = kwargs
+                result['params'].update(url=name)
+                self._handle_remark(result)
+                return
+            result = result['data'] if 'data' in result else result['return']
 
         if name == 'idkey':
             self.evt.emit(name, result)
@@ -242,7 +262,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
             trade_fee = Decimal(str(result['Trade_Fee']))
             rights = result['Rights']
             self.evt.emit(name, (trade_fee, rights))
-        elif name.endswith('money/trades/fetch'):
+        elif name.endswith('/trades/fetch'):
             # Result from load_trades_since method.
             for trade in result or []:
                 trade = self._extract_trade(trade)
@@ -251,11 +271,10 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
                 self.evt.emit('trade_fetch', trade)
             # Indicate end of fetch.
             self.evt.emit('trade_fetch', common.TRADE_EMPTY)
-        elif name.endswith('money/depth/fetch') or name.endswith(
-                'money/depth/full'):
+        elif name.endswith('/depth/fetch') or name.endswith('/depth/full'):
             # Result from depth_fetch or depth_full method.
             factor = currency_factor(self.currency)
-            coin = CURRENCY_FACTOR['BTC']
+            coin = CURRENCY_FACTOR['BTC'] # XXX
             for typ in ('bid', 'ask'):
                 entry = '%ss' % typ
                 for order in result[entry]:
@@ -265,8 +284,17 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
                     self.evt.emit('depth_fetch', depth)
             # Indicate end of fetch.
             self.evt.emit('depth_fetch', common.DEPTH_EMPTY)
+        elif name.endswith('/ticker'):
+            self.evt.emit('ticker_fetch',
+                    self._extract_ticker(result, restrict_currency=False))
+        elif name.endswith('/currency'):
+            self.evt.emit('currency_info', result)
         else:
-            rtype = name.replace('/', '_')
+            rtype = name.lstrip('/').replace('/', '_')
+            if rtype[0] in ('1', '2') and rtype[1] == '_':
+                # Assuming this is the result of an HTTP API call
+                # and the version used is not interesting.
+                rtype = rtype[2:]
             print("Emitting result event for %s" % rtype)
             self.evt.emit('result', (rtype, result))
 
@@ -285,22 +313,21 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
 
         self.evt.emit('depth', common.Depth(dtype, price, volume))
 
-    def _handle_ticker(self, ticker):
-        # Assumption: currency is the same in every field.
+    def _extract_ticker(self, ticker, restrict_currency=True):
+        # Assumption: currency is the same in every used field.
         currency = ticker["sell"]["currency"]
-        if currency != self.currency:
+        if currency != self.currency and restrict_currency:
             return
 
-        factor = currency_factor(currency)
-        ask = Decimal(ticker["sell"]["value_int"]) / factor
-        bid = Decimal(ticker["buy"]["value_int"]) / factor
-        coin = ticker["vol"]["currency"]
-        vol = Decimal(ticker["vol"]["value_int"]) / CURRENCY_FACTOR[coin]
-        vwap = Decimal(ticker["vwap"]["value_int"]) / factor
-        low = Decimal(ticker["low"]["value_int"]) / factor
-        high = Decimal(ticker["high"]["value_int"]) / factor
+        data = [Decimal(ticker[key]['value']) for key in (
+            'sell', 'buy', 'last', 'low', 'avg', 'high', 'vol', 'vwap')]
+        data.append((ticker['item'], currency))
+        return common.Ticker(*data)
 
-        self.evt.emit('ticker', (ask, bid, vwap, low, high, vol, coin))
+    def _handle_ticker(self, ticker):
+        item = self._extract_ticker(ticker)
+        if item is not None:
+            self.evt.emit('ticker', item)
 
     def _handle_trade(self, trade):
         trade = self._extract_trade(trade)
@@ -354,13 +381,13 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
 
     def onOpen(self):
         # Handshake completed.
-        print("Connected")
+        log.msg("Connected")
         self.ping_task.start(self.ping_delay)
         self.factory.setup()
         self.evt.emit('connected')
 
     def onClose(self, clean, code, reason):
-        print("Disconnected")
+        log.msg("Disconnected")
         for task in (self.ping_task, self.pong_task):
             if task.running:
                 task.stop()
@@ -370,7 +397,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         print("ERROR!!!", msg)
 
     def onPong(self, payload):
-        print("PONG (%s)" % payload, time.time() - self.ping_when)
+        log.msg("PONG (%s) %g" % (payload, time.time() - self.ping_when))
         self.ping_when = 0
         self.pong_task.stop()
 
@@ -416,7 +443,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
             self._handle_remark(data)
 
         elif op in ("subscribe", "unsubscribe"): # Ok
-            print("%sd %s %s" % (op.title(),
+            log.msg("%sd %s %s" % (op.title(),
                     'to' if op == 'subscribe' else 'from', msg["channel"]))
 
         else:
@@ -424,7 +451,8 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
 
 
 
-class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
+class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory,
+        common.CallOnEvent):
 
     protocol = MtgoxProtocol
 
@@ -457,20 +485,20 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
 
     def clientConnectionFailed(self, connector, reason):
         """Connection failed to complete."""
-        print("ConnectionFailed")
+        log.msg("ConnectionFailed")
         self._disconnected()
         ReconnectingClientFactory.clientConnectionFailed(self,
                 connector, reason)
 
     def clientConnectionLost(self, connector, reason):
         """Established connection has been lost."""
-        print("ConnectionLost")
+        log.msg("ConnectionLost")
         self._disconnected()
         ReconnectingClientFactory.clientConnectionLost(self,
                 connector, reason)
 
     def buildProtocol(self, addr):
-        print("buildProtocol")
+        log.msg("buildProtocol")
         self.resetDelay()
         proto = self.protocol(self.evt, self.key, self.secret,
                               self.currency, self.coin, self.http_api)
@@ -516,13 +544,6 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
             task.deferLater(reactor, 1, self.send_signed_call, call,
                     params, item, **kwargs)
 
-    def __getattr__(self, attr):
-        try:
-            return getattr(self.client, attr)
-        except AttributeError:
-            raise AttributeError('%r object has no attribute %r' % (
-                    self.__class__.__name__, attr))
-
     # API Callbacks (due to events)
 
     def refresh_idkey(self):
@@ -540,7 +561,7 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory):
         print("Remark: %s [%s] -- %s" % (msg, req_id, data))
 
     def got_channel(self, (name, cid)):
-        print("Subscribed in %s: %s" % (name, cid))
+        log.msg("Subscribed in %s: %s" % (name, cid))
         if name not in self.known_channels:
             self.known_channels[name] = cid
 
