@@ -134,7 +134,12 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         """
         return self.signed_call('/info')
 
-    def wallet_history(self, currency, **kwargs):
+    def wallet_history(self, currency=None, **kwargs):
+        """
+        Accepted parameters: currency, type, date_start, date_end,
+                             trade_id, page
+        """
+        currency = self.currency if currency is None else currency
         kwargs.update({'currency': currency})
         return self.signed_call('/wallet/history', kwargs)
 
@@ -246,6 +251,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
             # Result from HTTP API
             name = req_id
             if result['result'] != 'success':
+                # Call failed.
                 result['params'] = kwargs
                 result['params'].update(url=name)
                 self._handle_remark(result)
@@ -262,6 +268,10 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
             trade_fee = Decimal(str(result['Trade_Fee']))
             rights = result['Rights']
             self.evt.emit(name, (trade_fee, rights))
+        elif name == 'wallet/history':
+            # Result from wallet_history method.
+            self.evt.emit('wallet_history', result)
+
         elif name.endswith('/trades/fetch'):
             # Result from load_trades_since method.
             for trade in result or []:
@@ -289,13 +299,14 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
                     self._extract_ticker(result, restrict_currency=False))
         elif name.endswith('/currency'):
             self.evt.emit('currency_info', result)
+
         else:
             rtype = name.lstrip('/').replace('/', '_')
             if rtype[0] in ('1', '2') and rtype[1] == '_':
                 # Assuming this is the result of an HTTP API call
                 # and the version used is not interesting.
                 rtype = rtype[2:]
-            print("Emitting result event for %s" % rtype)
+            log.msg("Emitting result event for %s" % rtype)
             self.evt.emit('result', (rtype, result))
 
 
@@ -477,7 +488,6 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory,
 
         self.evt.listen('idkey', self.got_idkey)
         self.evt.listen('remark', self.got_remark)
-        self.evt.listen('result', self.got_result)
         self.evt.listen('channel', self.got_channel)
 
         self.idkey_refresh_task = task.LoopingCall(self.refresh_idkey)
@@ -554,9 +564,6 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory,
         self.send_request(json.dumps({'op': 'mtgox.subscribe', 'key': idkey}))
         print("Sent message to subscribe for account-private messages")
 
-    def got_result(self, (rtype, result)):
-        print("Result for %s: %s" % (rtype, result))
-
     def got_remark(self, (msg, req_id, data)):
         print("Remark: %s [%s] -- %s" % (msg, req_id, data))
 
@@ -584,6 +591,8 @@ def create_client(key='', secret='', currency="USD", secure=True,
             debug=debug_websocket, debugCodePaths=debug_websocket)
     factory.setProtocolOptions(version=13)
 
-    connectWS(factory, timeout=5)
+    # The following timeout is the number of seconds to wait before assuming
+    # the connection has failed.
+    connectWS(factory, timeout=3)
 
     return factory
