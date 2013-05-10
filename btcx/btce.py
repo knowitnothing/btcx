@@ -106,7 +106,7 @@ class BTCe(HTTPAPI):
 
 
     # Private (these retrieve data only about the own account)
-    def get_info(self):
+    def info(self):
         self.signed_call('getInfo', self._generic_cb('info'))
 
     def trans_history(self, **kwargs):

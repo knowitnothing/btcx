@@ -127,7 +127,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         """
         return self.signed_call('/orders')
 
-    def private_info(self):
+    def info(self):
         """
         On completion, an 'info' event will be emitted with
         args (trading fee, rights).
@@ -264,16 +264,16 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
             for order in result:
                 self.evt.emit('userorder', self._extract_order(order))
         elif name == 'info':
-            # Result from private_info method.
+            # Result from the info method.
             trade_fee = Decimal(str(result['Trade_Fee']))
             rights = result['Rights']
             self.evt.emit(name, (trade_fee, rights))
         elif name == 'wallet/history':
-            # Result from wallet_history method.
+            # Result from the wallet_history method.
             self.evt.emit('wallet_history', result)
 
         elif name.endswith('/trades/fetch'):
-            # Result from load_trades_since method.
+            # Result from the load_trades_since method.
             for trade in result or []:
                 trade = self._extract_trade(trade)
                 if trade.price is None:
