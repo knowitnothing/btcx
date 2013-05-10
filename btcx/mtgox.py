@@ -276,7 +276,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
             # Result from load_trades_since method.
             for trade in result or []:
                 trade = self._extract_trade(trade)
-                if trade[0] is None:
+                if trade.price is None:
                     continue
                 self.evt.emit('trade_fetch', trade)
             # Indicate end of fetch.
@@ -342,7 +342,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
 
     def _handle_trade(self, trade):
         trade = self._extract_trade(trade)
-        if trade[0] is None:
+        if trade.price is None:
             return
 
         self.evt.emit('trade', trade)
@@ -366,7 +366,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         if 'item' in order:
             self.evt.emit('userorder', self._extract_order(order))
         else:
-            removed_order = Order(order['oid'], None, None, 'removed',
+            removed_order = common.Order(order['oid'], None, None, 'removed',
                     None, None, None)
             self.evt.emit('userorder', removed_order)
 
