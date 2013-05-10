@@ -10,7 +10,9 @@ Can I run it ?
 The minimum  expected version  for Python is  2.6, but  `deps.sh` uses
 Python 2.7 by default (adjust it if  needed). If you are not sure that
 you have  the dependencies  installed, run  `./deps.sh` and  the basic
-packages will be installed in the `dep/` directory.
+packages will be  installed in the `dep/` directory. If  this is being
+executed under Windows, then create a `deps.bat` adjusting the code in
+`deps.sh`.
 
 After running `./deps.sh`, do (the equivalent of) the following:
 
@@ -123,6 +125,9 @@ also fetching older trades through the MtGox's HTTP API.
 
 +  `demo_7.py` plots  the depth  market. The  demo starts  by fetching
 partial data, and then corrects it as live changes are received.
+
+Executing `./run.sh` is  a good way to check if  every package used is
+available.
 
 
 Dependencies
