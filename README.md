@@ -44,8 +44,8 @@ creating a MtGox client
 client = btcx.mtgox.create_client()
 ```
 
-telling the client  to listen for events  "currency\_info", which will
-call into  a function  whenever they  are emitted.  To do  this, first
+telling the client  to listen for "currency\_info"  events, which will
+call into  a function whenever  they are  emitted.  To do  this, first
 create a function to handle such event and then define the listener
 
 ```python
