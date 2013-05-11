@@ -24,11 +24,11 @@ class BTCChina(HTTPAPI): # XXX Only public data for the moment.
         # high (day), low (day), vol (day),
         # buy (highest buy order), sell (lowest sell order)
         # Coin RMB (Renminbi)
-        self.call('bc/ticker', lambda result, _:
+        self.http_call('bc/ticker', lambda result, _:
                 self.evt.emit('ticker', result['ticker']))
 
     def trades(self):
-        self.call('bc/trades', self._handle_trades)
+        self.http_call('bc/trades', self._handle_trades)
 
     def _handle_trades(self, data, url):
         # A list of trades. Each item contains date, price, amount, tid.

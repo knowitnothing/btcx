@@ -100,7 +100,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
 
     def http_public_call(self, endpoint, version=2, **kwargs):
         urlpart = '/%d/%s' % (version, endpoint)
-        self.call(urlpart, self._handle_result, **kwargs)
+        self.http_call(urlpart, self._handle_result, **kwargs)
 
 
     # Helper/semiAPI functions

@@ -60,24 +60,24 @@ class BTCe(HTTPAPI):
     # Public
     def fee(self, p1='btc', p2='usd'):
         p1, p2 = p1.lower(), p2.lower()
-        self.call('api/2/%s_%s/fee' % (p1, p2),
+        self.http_call('api/2/%s_%s/fee' % (p1, p2),
                 lambda data, _: self.evt.emit('fee', data))
 
     def ticker(self, p1='btc', p2='usd'):
         p1, p2 = p1.lower(), p2.lower()
-        self.call('api/2/%s_%s/ticker' % (p1, p2), self._handle_ticker,
+        self.http_call('api/2/%s_%s/ticker' % (p1, p2), self._handle_ticker,
                 pair=(p1, p2))
 
     def trades(self, p1='btc', p2='usd'):
         # For each trade fetched, an 'trade_fetch' event will be emitted.
         p1, p2 = p1.lower(), p2.lower()
-        self.call('api/2/%s_%s/trades' % (p1, p2), self._handle_trades)
+        self.http_call('api/2/%s_%s/trades' % (p1, p2), self._handle_trades)
 
     def depth(self, p1='btc', p2='usd'):
         # For each item from depth fetched, an 'depth_fetch' event will be
         # emitted.
         p1, p2 = p1.lower(), p2.lower()
-        self.call('api/2/%s_%s/depth' % (p1, p2), self._handle_depth)
+        self.http_call('api/2/%s_%s/depth' % (p1, p2), self._handle_depth)
 
     def _handle_ticker(self, data, url, pair):
         data = data['ticker']

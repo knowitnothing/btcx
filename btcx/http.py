@@ -11,7 +11,7 @@ class HTTPAPI(object):
     def __init__(self, host):
         self.host = host
 
-    def call(self, urlpart, cb, **kwargs):
+    def http_call(self, urlpart, cb, **kwargs):
         headers = Headers({"User-Agent": [USER_AGENT]})
         d = treq.get('%s/%s' % (self.host, urlpart),
                 params=kwargs, headers=headers)
