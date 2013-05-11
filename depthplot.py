@@ -1,31 +1,14 @@
 import time
 import numpy
 import sqlite3
-import PyQt4.QtGui as QG
-import PyQt4.QtCore as QC
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator
 
+class PlotDepth(object):
+    def __init__(self, figure, canvas, axconf=None):
+        self._setup_db()
 
-class PlotDepth(QG.QWidget):
-    def __init__(self, parent=None, axconf=None, timeout=2000):
-        QG.QWidget.__init__(self, parent)
-
-        self._depth = sqlite3.connect(':memory:')
-        self._depth.execute("""CREATE TABLE
-                bid (price INTEGER PRIMARY KEY, amount REAL)""")
-        self._depth.execute("""CREATE TABLE
-                ask (price INTEGER PRIMARY KEY, amount REAL)""")
-
-        self.fig = Figure(figsize=(8, 3))
-        self.canvas = FigureCanvas(self.fig)
-        self.canvas.setParent(self)
-
-        layout = QG.QVBoxLayout()
-        layout.setMargin(0)
-        layout.addWidget(self.canvas)
-        self.setLayout(layout)
+        self.fig = figure
+        self.canvas = canvas
 
         if axconf:
             self.ax = self.fig.add_axes(axconf)
@@ -50,18 +33,17 @@ class PlotDepth(QG.QWidget):
         # updates pending.
         self.replot_after = 30
 
-        self.timer = QC.QTimer()
-        self.timer.timeout.connect(self.replot)
-        self.timer.start(timeout) # x ms.
-
         self._last_old = 'bid'
-        self.timer_clean = QC.QTimer()
-        self.timer_clean.timeout.connect(self._clean_db)
-        # Remove unused/old data from in-memory database each n seconds.
-        self.timer_clean.start(5 * 1000)
+
+    def _setup_db(self):
+        self._depth = sqlite3.connect(':memory:')
+        self._depth.execute("""CREATE TABLE
+                bid (price INTEGER PRIMARY KEY, amount REAL)""")
+        self._depth.execute("""CREATE TABLE
+                ask (price INTEGER PRIMARY KEY, amount REAL)""")
 
 
-    def _clean_db(self):
+    def clean_db(self):
         print("Cleaning database..")
 
         # Clean bids.
@@ -193,24 +175,4 @@ class PlotDepth(QG.QWidget):
             # More than n changes since the last replot.
             print("Forcing replot", self.need_replot)
             self.replot()
-
-
-if __name__ == "__main__":
-    import sys
-
-    app = QG.QApplication([])
-
-    pd = PlotDepth()
-
-    # If you wish to run this, grab any data formatted in
-    # three columns where the last two are numbers.
-    for line in open(sys.argv[1]):
-        if not line.strip():
-            continue
-        typ, price, amount = line.split()
-        pd.new_data(typ, price, amount)
-
-    pd.show()
-    pd.raise_()
-    app.exec_()
 

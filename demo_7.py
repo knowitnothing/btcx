@@ -2,17 +2,44 @@ from __future__ import print_function
 print("Loading modules..")
 import sys
 import PyQt4.QtGui as QG
+import PyQt4.QtCore as QC
 
 app = QG.QApplication([])
 import qt4reactor
 qt4reactor.install()
 
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
 from twisted.internet import reactor
 
 # Own modules
 from btcx import mtgox, cfgmanager
 from depthplot import PlotDepth
 print("woof!")
+
+
+class PlotDepthWidget(QG.QWidget):
+    def __init__(self, parent=None, axconf=None, timeout=2000):
+        QG.QWidget.__init__(self, parent)
+
+        figure = Figure(figsize=(8, 3))
+        canvas = FigureCanvasQTAgg(figure)
+        canvas.setParent(self)
+        self.plot = PlotDepth(figure, canvas, axconf)
+
+        layout = QG.QVBoxLayout()
+        layout.setMargin(0)
+        layout.addWidget(self.plot.canvas)
+        self.setLayout(layout)
+
+        self.timer = QC.QTimer()
+        self.timer.timeout.connect(self.plot.replot)
+        self.timer.start(timeout) # x ms.
+
+        self.timer_clean = QC.QTimer()
+        self.timer_clean.timeout.connect(self.plot.clean_db)
+        # Remove unused/old data from in-memory database each n seconds.
+        self.timer_clean.start(5 * 1000)
 
 
 class Demo(object):
@@ -63,9 +90,9 @@ def main(key, secret):
 
     main = QG.QMainWindow()
     w = QG.QWidget()
-    plot = PlotDepth(axconf=[0.1, 0.15, 0.87, 0.81])
+    plotw = PlotDepthWidget(axconf=[0.1, 0.15, 0.87, 0.81])
     l = QG.QVBoxLayout()
-    l.addWidget(plot)
+    l.addWidget(plotw)
     w.setLayout(l)
     main.setWindowTitle(u'MtGox Depth Market')
     main.setCentralWidget(w)
@@ -74,7 +101,7 @@ def main(key, secret):
         event.accept()
     main.closeEvent = finish
 
-    demo = Demo(plot, currency)
+    demo = Demo(plotw.plot, currency)
 
     cli = mtgox.create_client(key, secret, currency)
 
