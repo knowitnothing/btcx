@@ -10,32 +10,13 @@ qt4reactor.install()
 import time
 from twisted.internet import reactor, task
 from matplotlib.backends.backend_qt4agg import (
-        FigureCanvasQTAgg as FigureCanvas,
-        NavigationToolbar2QTAgg as NavigationToolbar)
+        FigureCanvasQTAgg, NavigationToolbar2QTAgg)
 from matplotlib.figure import Figure
 
 # Own modules
 import mtgox_tradehist
-from candlechart import Candlestick
+from qtplot import CandlestickWidget
 print("woof!")
-
-
-class CandlestickWidget(QG.QWidget):
-    def __init__(self, parent, **kwargs):
-        QG.QWidget.__init__(self, parent)
-
-        figure = Figure(figsize=(8, 3.8))
-        canvas = FigureCanvas(figure)
-        canvas.setParent(self)
-        self.plot = Candlestick(figure, canvas, **kwargs)
-
-        layout = QG.QVBoxLayout()
-        layout.setMargin(0)
-        layout.addWidget(self.plot.canvas)
-        if self.plot.navbar:
-            self.mpl_bar = NavigationToolbar(self.plot.canvas, self)
-            layout.addWidget(self.mpl_bar)
-        self.setLayout(layout)
 
 
 class Demo(QG.QMainWindow):

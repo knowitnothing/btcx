@@ -14,32 +14,8 @@ from twisted.internet import reactor
 
 # Own modules
 from btcx import mtgox, cfgmanager
-from depthplot import PlotDepth
+from qtplot import PlotDepthWidget
 print("woof!")
-
-
-class PlotDepthWidget(QG.QWidget):
-    def __init__(self, parent=None, axconf=None, timeout=2000):
-        QG.QWidget.__init__(self, parent)
-
-        figure = Figure(figsize=(8, 3))
-        canvas = FigureCanvasQTAgg(figure)
-        canvas.setParent(self)
-        self.plot = PlotDepth(figure, canvas, axconf)
-
-        layout = QG.QVBoxLayout()
-        layout.setMargin(0)
-        layout.addWidget(self.plot.canvas)
-        self.setLayout(layout)
-
-        self.timer = QC.QTimer()
-        self.timer.timeout.connect(self.plot.replot)
-        self.timer.start(timeout) # x ms.
-
-        self.timer_clean = QC.QTimer()
-        self.timer_clean.timeout.connect(self.plot.clean_db)
-        # Remove unused/old data from in-memory database each n seconds.
-        self.timer_clean.start(5 * 1000)
 
 
 class Demo(object):

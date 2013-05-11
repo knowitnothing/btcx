@@ -13,7 +13,7 @@ from matplotlib.ticker import ScalarFormatter
 # Own modules
 import systray
 from btcx import btce, mtgox, bitstamp, btcchina, common
-from simpleplot import SimplePlot
+from qtplot import SimplePlotWidget
 print("woof!")
 
 
@@ -30,7 +30,7 @@ class Demo(QG.QMainWindow):
 
         yl = u'%s/BTC' % currency
         ax1_kw = {'lw': 2, 'ls': 'steps'}
-        self.plot = SimplePlot(self, lineconfig=( # A plot with two axes
+        self.plotw = SimplePlotWidget(self, lineconfig=( # A plot with two axes
             # The first axis displays trades from the exchanges
             ('trade', {'title': u'Trades', 'ylabel': yl,
                     'numpoints': 150, # Last 150 trades
@@ -64,6 +64,8 @@ class Demo(QG.QMainWindow):
             # Refresh the plots (if needed) each 300 ms
             timeout=300)
 
+        self.plot = self.plotw.plot
+
         # Disable scientific notation.
         self.plot.ax['vol'].yaxis.set_major_formatter(ScalarFormatter(False))
 
@@ -84,7 +86,7 @@ class Demo(QG.QMainWindow):
 
         quit_btn = QG.QPushButton(u'Quit')
         layout = QG.QVBoxLayout()
-        layout.addWidget(self.plot)
+        layout.addWidget(self.plotw)
         layout.addWidget(quit_btn)
         widget.setLayout(layout)
         self.setCentralWidget(widget)

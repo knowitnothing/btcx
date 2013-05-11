@@ -1,18 +1,9 @@
-from __future__ import print_function
-
 import numpy
 import pylab
-import PyQt4.QtGui as QG
-import PyQt4.QtCore as QC
-from matplotlib.backends.backend_qt4agg import (
-        FigureCanvasQTAgg as FigureCanvas,
-        NavigationToolbar2QTAgg as NavigationToolbar)
-from matplotlib.figure import Figure
 
+class SimplePlot(object):
 
-class SimplePlot(QG.QWidget):
-
-    def __init__(self, parent, lineconfig, ax_bbox, navbar=True, timeout=350):
+    def __init__(self, figure,canvas,lineconfig,ax_bbox,navbar=True,**kwargs):
         #
         # lineconfig is expected to be an ordered sequence of (key, value):
         #       key: plot name
@@ -27,8 +18,8 @@ class SimplePlot(QG.QWidget):
         #
         #       The pair key (plot name) and name (line name) must be unique.
         #
-
-        QG.QWidget.__init__(self, parent)
+        self.fig = figure
+        self.canvas = canvas
 
         self.navbar = navbar
         self.ax_bbox = ax_bbox
@@ -47,34 +38,12 @@ class SimplePlot(QG.QWidget):
                 self.xdata[k, lname] = numpy.arange(npoints, dtype=int)
                 self.last_xi[k, lname] = 0
 
-        self.create_plot()
-        self.setup_gui()
+        self.setup_plot()
 
         self.need_replot = False
-        self.timer = QC.QTimer()
-        self.timer.timeout.connect(self._replot)
-        self.timer.start(timeout) # x ms for timeout.
-
-    def closeEvent(self, event):
-        # This widget is going away.
-        self.timer.stop()
-        event.accept()
 
 
-    def setup_gui(self):
-        layout = QG.QVBoxLayout()
-        layout.setMargin(0)
-        layout.addWidget(self.canvas)
-        if self.navbar:
-            self.mpl_bar = NavigationToolbar(self.canvas, self)
-            layout.addWidget(self.mpl_bar)
-        self.setLayout(layout)
-
-    def create_plot(self):
-        self.fig = Figure()
-        self.canvas = FigureCanvas(self.fig)
-        self.canvas.setParent(self)
-
+    def setup_plot(self):
         self.ax = {}
         ax_cfg = iter(self.ax_bbox)
         for name, _ in self.lineconfig:
@@ -144,7 +113,7 @@ class SimplePlot(QG.QWidget):
         self.need_replot = True
 
 
-    def _replot(self):
+    def replot(self):
         if not self.need_replot:
             return
 
