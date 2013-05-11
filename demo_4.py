@@ -1,6 +1,7 @@
 from __future__ import print_function
 print("Loading modules..")
 import PyQt4.QtGui as QG
+import PyQt4.QtCore as QC
 
 app = QG.QApplication([])
 import qt4reactor
@@ -8,11 +9,33 @@ qt4reactor.install()
 
 import time
 from twisted.internet import reactor, task
+from matplotlib.backends.backend_qt4agg import (
+        FigureCanvasQTAgg as FigureCanvas,
+        NavigationToolbar2QTAgg as NavigationToolbar)
+from matplotlib.figure import Figure
 
 # Own modules
 import mtgox_tradehist
 from candlechart import Candlestick
 print("woof!")
+
+
+class CandlestickWidget(QG.QWidget):
+    def __init__(self, parent, **kwargs):
+        QG.QWidget.__init__(self, parent)
+
+        figure = Figure(figsize=(8, 3.8))
+        canvas = FigureCanvas(figure)
+        canvas.setParent(self)
+        self.plot = Candlestick(figure, canvas, **kwargs)
+
+        layout = QG.QVBoxLayout()
+        layout.setMargin(0)
+        layout.addWidget(self.plot.canvas)
+        if self.plot.navbar:
+            self.mpl_bar = NavigationToolbar(self.plot.canvas, self)
+            layout.addWidget(self.mpl_bar)
+        self.setLayout(layout)
 
 
 class Demo(QG.QMainWindow):
@@ -31,9 +54,10 @@ class Demo(QG.QMainWindow):
         self._load_last = max_hours_ago # x hours to load from database.
 
         self.candle_duration = 60 * self.candle_minute # 60 * x min = y seconds
-        self.plot = Candlestick(self,
+        self.plotw = CandlestickWidget(self,
                 max_candles=int((60 / self.candle_minute) * self.plot_hours),
                 ylim_extra=0.02)
+        self.plot = self.plotw.plot
 
         self.setup_gui()
         self._loading = False
@@ -48,7 +72,7 @@ class Demo(QG.QMainWindow):
 
         quit_btn = QG.QPushButton(u'Quit')
         layout = QG.QVBoxLayout()
-        layout.addWidget(self.plot)
+        layout.addWidget(self.plotw)
         layout.addWidget(quit_btn)
         widget.setLayout(layout)
         self.setCentralWidget(widget)

@@ -1,23 +1,18 @@
 import pylab
-import PyQt4.QtGui as QG
-import PyQt4.QtCore as QC
 from matplotlib import patches, lines
-from matplotlib.figure import Figure
 from matplotlib.colors import ColorConverter
-from matplotlib.backends.backend_qt4agg import (
-        FigureCanvasQTAgg as FigureCanvas,
-        NavigationToolbar2QTAgg as NavigationToolbar)
 from collections import deque
 
+class Candlestick(object):
+    def __init__(self, figure,canvas,max_candles=36,ylim_extra=0.1,**kwargs):
 
-class Candlestick(QG.QWidget):
-    def __init__(self, parent, max_candles=36, ylim_extra=0.1, **candle_kwargs):
-        QG.QWidget.__init__(self, parent)
+        self.fig = figure
+        self.canvas = canvas
 
         # Candle layout configuration.
-        self.config = {'empty': candle_kwargs.get('empty', 'none'),
-                       'filled': candle_kwargs.get('filled', 'k'),
-                       'edgecolor': candle_kwargs.get('edgecolor', 'k')}
+        self.config = {'empty': kwargs.get('empty', 'none'),
+                       'filled': kwargs.get('filled', 'k'),
+                       'edgecolor': kwargs.get('edgecolor', 'k')}
 
         self._filled_rgba = ColorConverter().to_rgba(self.config['filled'])
 
@@ -30,15 +25,10 @@ class Candlestick(QG.QWidget):
 
         self.candle = deque()
 
-        self.create_plot()
-        self.setup_gui()
+        self.setup_plot()
 
 
-    def create_plot(self):
-        self.fig = Figure(figsize=(8, 3.8))
-        self.canvas = FigureCanvas(self.fig)
-        self.canvas.setParent(self)
-
+    def setup_plot(self):
         ax_bbox = ([0.1, 0.28, 0.87, 0.68], [0.1, 0.04, 0.87, 0.2])
         self.ax = self.fig.add_axes(ax_bbox[0]) # candlesticks
         self.ax_vol = self.fig.add_axes(ax_bbox[1], sharex=self.ax) # volume
@@ -54,15 +44,6 @@ class Candlestick(QG.QWidget):
 
         self.ax.format_coord = self._format_coord
         self.ax_vol.format_coord = self._format_coord
-
-    def setup_gui(self):
-        layout = QG.QVBoxLayout()
-        layout.setMargin(0)
-        layout.addWidget(self.canvas)
-        if self.navbar:
-            self.mpl_bar = NavigationToolbar(self.canvas, self)
-            layout.addWidget(self.mpl_bar)
-        self.setLayout(layout)
 
 
     def _format_coord(self, x, y):
@@ -176,6 +157,7 @@ class Candlestick(QG.QWidget):
         self.ax_vol.set_ylim(0, self.vol_max)
 
 
+"""
 if __name__ == "__main__":
     app = QG.QApplication([])
 
@@ -200,3 +182,4 @@ if __name__ == "__main__":
     timer.start(25)
 
     app.exec_()
+"""
