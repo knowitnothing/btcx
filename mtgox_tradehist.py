@@ -25,6 +25,9 @@ class TradeFetchStore(object):
         res = self.cursor.fetchone()
         self.prev_last = None
 
+        # Number of calls made and which did not finish yet.
+        self._pending = False
+
         self.last_tid = 0 if res is None else res[0]
         if max_hours_ago is not None:
             self.last_tid = max(self.last_tid, mtgox.calc_tid(max_hours_ago))
@@ -37,10 +40,16 @@ class TradeFetchStore(object):
     def load_from_last_stored(self, client):
         if self.verbose:
             print("Loading from", self.last_tid)
+        if self._pending:
+            if self.verbose:
+                print("There is a pending call, returning")
+            return
+        self._pending = True
         client.load_trades_since(tid=self.last_tid)
 
     def on_trade_fetch(self, trade):
         if trade.id is None:
+            self._pending = False
             self.db.commit()
             if self.verbose:
                 print("tid", self.last_tid, self.prev_last, "<<")
@@ -117,5 +126,4 @@ if __name__ == "__main__":
     from twisted.internet import reactor
     mtgox_client, tradefetch = setup_client()
     mtgox_client.evt.listen('done', lambda _: reactor.stop())
-    mtgox.start(mtgox_client)
     reactor.run()
