@@ -12,7 +12,7 @@ class BTCChina(HTTPAPI): # XXX Only public data for the moment.
 
     def __init__(self, key, secret, host):
         super(BTCChina, self).__init__(host)
-        self.evt = common.ExchangeEvent(eventprefix="//btcchina")
+        self.evt = common.Event(eventprefix="//btcchina")
 
 
     # Public API

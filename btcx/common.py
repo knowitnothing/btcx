@@ -67,7 +67,7 @@ Ticker = namedtuple('Ticker', [
     ])
 
 
-class ExchangeEvent(EventDispatcher):
+class Event(EventDispatcher):
     def __init__(self, **kwargs):
         EventDispatcher.__init__(self, **kwargs)
         self.listener = {}
@@ -112,8 +112,7 @@ class ExchangeEvent(EventDispatcher):
 class CallOnEvent(object):
     """
     CallOnEvent is to be used as a mixin. It is expected that
-    the class inheriting it provides an ExchangeEvent instance
-    through instance.evt
+    the class inheriting it provides an Event instance through instance.evt
 
     The main intention of this class is to provide an easier way
     to call into a protocol instance built by buildProtocol (i.e.,

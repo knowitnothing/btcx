@@ -471,7 +471,7 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory,
     def __init__(self, key, secret, currency, http_api, coin='BTC', **kwargs):
         WebSocketClientFactory.__init__(self, **kwargs)
 
-        self.evt = common.ExchangeEvent(eventprefix="//mtgox")
+        self.evt = common.Event(eventprefix="//mtgox")
         self.key = binascii.unhexlify(key.replace('-', ''))
         self.secret = base64.b64decode(secret)
         self.currency = currency

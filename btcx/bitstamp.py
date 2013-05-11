@@ -12,7 +12,7 @@ class Bitstamp(HTTPAPI): # XXX Only public data for the moment.
 
     def __init__(self, key, secret, host):
         super(Bitstamp, self).__init__(host)
-        self.evt = common.ExchangeEvent(eventprefix="//bitstamp")
+        self.evt = common.Event(eventprefix="//bitstamp")
 
 
     # Public API

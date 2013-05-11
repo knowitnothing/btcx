@@ -19,7 +19,7 @@ class BTCe(HTTPAPI):
 
     def __init__(self, key, secret, host):
         super(BTCe, self).__init__(host)
-        self.evt = common.ExchangeEvent(eventprefix="//btce")
+        self.evt = common.Event(eventprefix="//btce")
         self.key = key.encode('ascii')
         self.secret = secret
         self.host = host
