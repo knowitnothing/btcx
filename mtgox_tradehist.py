@@ -25,7 +25,7 @@ class TradeFetchStore(object):
         res = self.cursor.fetchone()
         self.prev_last = None
 
-        # Number of calls made and which did not finish yet.
+        # Did we request to load data and it did not finish yet ?
         self._pending = False
 
         self.last_tid = 0 if res is None else res[0]
