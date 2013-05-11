@@ -229,7 +229,12 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
             return common.Trade(tid, None, None, None, None)
 
         timestamp = int(trade['date'])
-        ttype = trade['trade_type'][0]
+        ttype = trade['trade_type']
+        if ttype:
+            # Old trades always set trade_type to ''.
+            # On newer trades, pick only the first letter from
+            # (a)sk/(b)id.
+            ttype = ttype[0]
         factor = currency_factor(currency)
         price = Decimal(trade['price_int']) / factor
         coin = trade['item']

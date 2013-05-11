@@ -50,6 +50,13 @@ class TradeFetchStore(object):
                 self.mtgox.evt.emit('done', None)
             else:
                 # Ask for more!
+                if self.last_tid == 218868:
+                    # Skip to id 1309100000000000 as MtGox is no
+                    # longer returning data when 218868 <= tid < X.
+                    jump_to = 1309100000000000
+                    print("Jumping from tid %d to %d" % (self.last_tid,
+                        jump_to))
+                    self.last_tid = jump_to
                 self.mtgox.evt.emit('partial_download', None)
                 self.prev_last = self.last_tid
             return
