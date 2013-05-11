@@ -25,13 +25,14 @@ class Bitstamp(HTTPAPI): # XXX Only public data for the moment.
                 self.evt.emit('ticker', result)) # XXX Map to Decimal.
 
     def order_book(self, group=1):
-        self.http_call('api/order_book', lambda result, _:
+        self.http_call('api/order_book', lambda result, _, **kwargs:
                 self.evt.emit('order_book', result), # XXX Format.
                 group=group)
 
     def transactions(self, timedelta=86400):
         """Obtain transactions for the last timedelta seconds."""
-        self.http_call('api/transactions', self._handle_transactions)
+        self.http_call('api/transactions', self._handle_transactions,
+                timedelta=timedelta)
 
     def reserves(self):
         """Obtain the Bitinstant USD reserves."""
@@ -45,7 +46,7 @@ class Bitstamp(HTTPAPI): # XXX Only public data for the moment.
                 self.evt.emit('eur_usd', (
                     Decimal(result['buy']), Decimal(result['sell']))))
 
-    def _handle_transactions(self, data, url):
+    def _handle_transactions(self, data, url, **kwargs):
         for item in reversed(data): # From oldest to newest.
             trade = common.Trade(item['tid'], int(item['date']), '',
                                  Decimal(item['price']),
