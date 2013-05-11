@@ -152,7 +152,7 @@ class BTCe(HTTPAPI):
                 if data['error'].startswith('invalid nonce parameter'):
                     # XXX This and every other print should be logged.
                     print(">>> Retrying", evtname)
-                    self.nonce += 1
+                    self.nonce = int(time.time())
                     self.signed_call(args[0], self._generic_cb(evtname),
                             **args[1])
                 else:
