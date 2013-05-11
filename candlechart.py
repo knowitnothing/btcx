@@ -155,30 +155,3 @@ class Candlestick(object):
                          self.ylim[1] + self.ylim_extra)
         self.ax_vol.set_ylim(0, self.vol_max)
 
-
-"""
-if __name__ == "__main__":
-    app = QG.QApplication([])
-
-    cs = Candlestick(None, max_candles=12 * 4)
-    cs.show()
-    cs.raise_()
-
-    import random
-    random.seed(0)
-    def random_data():
-        o, c = [random.randint(9, 12) for _ in xrange(2)]
-        h = random.randint(max(o, c), 14)
-        l = random.randint(6, min(o, c))
-        v = random.random()
-        if random.random() < 0.25 or not cs.candle:
-            cs.append_candle(o, h, l, c, v)
-        else:
-            vol_last = cs.candle[-1][-1]
-            cs.update_right_candle(o, h, l, c, vol_last + v)
-    timer = QC.QTimer()
-    timer.timeout.connect(random_data)
-    timer.start(25)
-
-    app.exec_()
-"""

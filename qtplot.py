@@ -81,3 +81,65 @@ class CandlestickWidget(QG.QWidget):
             self.mpl_bar = NavigationToolbar2QTAgg(self.plot.canvas, self)
             layout.addWidget(self.mpl_bar)
         self.setLayout(layout)
+
+
+if __name__ == "__main__":
+    import random
+    random.seed(0)
+    app = QG.QApplication([])
+
+    # SimplePlot usage.
+    currency = 'USD'
+    yl = u'%s/COIN' % currency
+    ax1_kw = {'lw': 2, 'ls': 'steps'}
+    plotw = SimplePlotWidget(None, lineconfig=(
+        ('trades', {'title': u'Trades', 'ylabel': yl, 'numpoints': 120,
+                    'legend': {'loc': 'upper center',
+                               'bbox_to_anchor': (0.5, -0.05), 'ncol': 2},
+                    'grid': True,
+                    'ylim_extra': 1.0,
+                    'line': (('a', u'R', 'r', ax1_kw),
+                             ('b', u'B', 'b', ax1_kw))}
+        ),
+        ('foo',    {'title': u'', 'ylabel': u'Some label', 'numpoints': 40,
+                    'ylim_extra': 0.1,
+                    'line': (('x', u'', 'k', {'lw': 1, 'ls': 'steps'}), )}
+        )),
+        ax_bbox=(([0.1, 0.4, 0.8, 0.55], [0.1, 0.05, 0.8, 0.2])),
+        navbar=True, timeout=5)
+    plotw.show()
+    plotw.raise_()
+    plot = plotw.plot
+
+    def random_data():
+        pname, lname = random.choice(plot.ydata.keys())
+        if random.random() < 0.05:
+            plot.append_value(random.random() * 100, pname, lname)
+        else:
+            plot.append_value(random.random(), pname, lname)
+    timer1 = QC.QTimer()
+    timer1.timeout.connect(random_data)
+    timer1.start(10)
+
+    # Candlestick usage
+    csw = CandlestickWidget(None, max_candles=12 * 4)
+    csw.show()
+    csw.raise_()
+    cs = csw.plot
+
+    def random_data():
+        o, c = [random.randint(9, 12) for _ in xrange(2)]
+        h = random.randint(max(o, c), 14)
+        l = random.randint(6, min(o, c))
+        v = random.random()
+        if random.random() < 0.25 or not cs.candle:
+            cs.append_candle(o, h, l, c, v)
+        else:
+            vol_last = cs.candle[-1][-1]
+            cs.update_right_candle(o, h, l, c, vol_last + v)
+    timer2 = QC.QTimer()
+    timer2.timeout.connect(random_data)
+    timer2.start(25)
+
+
+    app.exec_()
