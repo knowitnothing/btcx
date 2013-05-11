@@ -1,10 +1,8 @@
 from __future__ import print_function
 
-import sqlite3
 from twisted.internet import reactor
 
 # Own modules
-from btcx import mtgox
 import mtgox_tradehist
 
 def main():

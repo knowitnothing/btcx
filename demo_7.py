@@ -2,7 +2,6 @@ from __future__ import print_function
 print("Loading modules..")
 import sys
 import PyQt4.QtGui as QG
-import PyQt4.QtCore as QC
 
 app = QG.QApplication([])
 import qt4reactor

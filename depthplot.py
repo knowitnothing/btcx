@@ -3,9 +3,7 @@ import numpy
 import sqlite3
 import PyQt4.QtGui as QG
 import PyQt4.QtCore as QC
-from matplotlib.backends.backend_qt4agg import (
-        FigureCanvasQTAgg as FigureCanvas,
-        NavigationToolbar2QTAgg as NavigationToolbar)
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator
 

@@ -3,7 +3,6 @@
 
 from __future__ import print_function
 
-import sys
 import json
 import time
 import hmac
@@ -12,12 +11,9 @@ import hashlib
 import binascii
 from decimal import Decimal
 
-import treq # Used for public HTTP-API calls
 from twisted.python import log
 from twisted.internet import reactor, task
 from twisted.internet.protocol import ReconnectingClientFactory
-from twisted.web.http_headers import Headers
-from twisted.words.xish.utility import EventDispatcher
 from autobahn.websocket import (WebSocketProtocol, WebSocketClientProtocol,
                                 WebSocketClientFactory, connectWS)
 

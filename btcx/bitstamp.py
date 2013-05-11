@@ -2,9 +2,7 @@
 
 from __future__ import print_function
 
-import sys
 from decimal import Decimal
-from twisted.python import log
 
 import common
 from http import HTTPAPI

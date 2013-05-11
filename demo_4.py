@@ -1,20 +1,16 @@
 from __future__ import print_function
 print("Loading modules..")
 import PyQt4.QtGui as QG
-import PyQt4.QtCore as QC
 
 app = QG.QApplication([])
 import qt4reactor
 qt4reactor.install()
 
 import time
-import calendar
-from decimal import Decimal
 from twisted.internet import reactor, task
 
 # Own modules
 import mtgox_tradehist
-from btcx import mtgox
 from candlechart import Candlestick
 print("woof!")
 

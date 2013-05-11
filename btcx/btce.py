@@ -2,7 +2,6 @@
 
 from __future__ import print_function
 
-import sys
 import time
 import hmac
 import hashlib
@@ -10,7 +9,6 @@ from urllib import urlencode
 from decimal import Decimal
 
 import treq
-from twisted.python import log
 from twisted.internet import reactor, task
 from twisted.web.http_headers import Headers
 
