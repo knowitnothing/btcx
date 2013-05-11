@@ -6,7 +6,7 @@ from matplotlib import dates
 from datetime import date, datetime, timedelta
 from twisted.internet import reactor
 
-from candlechart_noqt import Candlestick
+from candlechart import Candlestick
 
 SECURE = True
 SOURCEFORGE_STATS = "sourceforge.net/projects/bitcoin/files"
@@ -85,7 +85,7 @@ def do_the_plot(candle, sf_top):
 
     dl_factor = 100 # Download counts will be divided by this amount
     plot_sf_stats(sf_top, ax, fig, factor=dl_factor)
-    plot_candles(ax, candle)
+    plot_candles(ax, fig, candle)
     xlim = ax.get_xlim()
     ax.set_xlim(xlim[0] - 1, xlim[1] + 1)
 
@@ -102,10 +102,11 @@ def do_the_plot(candle, sf_top):
     pylab.show()
 
 
-def plot_candles(ax, candle):
-    cs = Candlestick(ax)
+def plot_candles(ax, fig, candle):
+    cs = Candlestick(fig, fig.canvas, ax=ax, ylim_extra=0,
+            max_candles=float('inf'), vol_plot=False)
     for o, h, l, c in candle:
-        cs.append_candle(o, h, l, c)
+        cs.append_candle(o, h, l, c, redraw=False)
 
 def plot_sf_stats(top, ax, fig, factor):
     factor = float(factor)
