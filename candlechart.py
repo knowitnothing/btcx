@@ -16,7 +16,6 @@ class Candlestick(object):
 
         self._filled_rgba = ColorConverter().to_rgba(self.config['filled'])
 
-        self.navbar = True
         self.max_candles = max_candles
         self.ylim_extra = ylim_extra
         self.ylim = [float('inf'), float('-inf')]
