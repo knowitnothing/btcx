@@ -84,10 +84,10 @@ def loop_ask(func, msg):
         break
     return answer
 
-def obtain_key_secret(argl, **kwargs):
+def obtain_key_secret(argl=None, **kwargs):
     cfgman = Config(**kwargs)
 
-    if len(argl) == 1 and argl[0] == "-n":
+    if argl and len(argl) == 1 and argl[0] == "-n":
         print "Setting up new key/secret pair"
         setup_new_key(cfgman)
         print "New pair stored"
