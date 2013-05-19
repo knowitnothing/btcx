@@ -107,6 +107,9 @@ class SimplePlot(object):
             yl[0] = min(yl[0], yli[0])
             yl[1] = max(yl[1], yli[1])
 
+        # XXX
+#        self.ax[plotname].set_xlim(len(xdata) - 10, len(xdata))
+
         self.ax[plotname].set_ylim(
                 yl[0] - self.ylim_extra[plotname],
                 yl[1] + self.ylim_extra[plotname])

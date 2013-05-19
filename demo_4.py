@@ -15,7 +15,7 @@ from matplotlib.figure import Figure
 
 # Own modules
 import mtgox_tradehist
-from qtplot import CandlestickWidget
+from gui.qt.qtplot import CandlestickWidget
 print("woof!")
 
 

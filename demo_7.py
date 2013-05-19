@@ -14,7 +14,7 @@ from twisted.internet import reactor
 
 # Own modules
 from btcx import mtgox, cfgmanager
-from qtplot import PlotDepthWidget
+from gui.qt.qtplot import PlotDepthWidget
 print("woof!")
 
 

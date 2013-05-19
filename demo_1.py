@@ -11,9 +11,9 @@ from twisted.internet import reactor, task
 from matplotlib.ticker import ScalarFormatter
 
 # Own modules
-import systray
 from btcx import btce, mtgox, bitstamp, btcchina, common
-from qtplot import SimplePlotWidget
+from gui.qt import systray
+from gui.qt.qtplot import SimplePlotWidget
 print("woof!")
 
 

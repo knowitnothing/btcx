@@ -4,10 +4,11 @@ from matplotlib.backends.backend_qt4agg import (
         FigureCanvasQTAgg, NavigationToolbar2QTAgg)
 from matplotlib.figure import Figure
 
-from depthplot import PlotDepth
-from simpleplot import SimplePlot
-from candlechart import Candlestick
+from gui.plot.depthplot import PlotDepth
+from gui.plot.simpleplot import SimplePlot
+from gui.plot.candlechart import Candlestick
 
+print PlotDepth
 
 class PlotDepthWidget(QG.QWidget):
     def __init__(self, parent=None, axconf=None, timeout=2000):
