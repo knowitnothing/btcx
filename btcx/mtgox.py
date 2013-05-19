@@ -101,17 +101,24 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
 
     # Helper/semiAPI functions
 
-    def order_add(self, otype, amount_int, price_int=0):
+    def order_add(self, otype, amount_dec, price_dec=0):
+        amount_int = int(common.currency_factor(self.coin) *
+                Decimal(amount_dec))
+        price_int = int(common.currency_factor(self.currency) *
+                Decimal(price_dec))
+        return self._order_add(otype, amount_int, price_int)
+
+    def order_add_buy(self, amount_dec, price_dec=0):
+        return self.order_add('bid', amount_dec, price_dec)
+
+    def order_add_sell(self, amount_dec, price_dec=0):
+        return self.order_add('ask', amount_dec, price_dec)
+
+    def _order_add(self, otype, amount_int, price_int=0):
         params = {'type': otype, 'amount_int': amount_int}
         if price_int:
             params['price_int'] = price_int
         return self.signed_call('/order/add', params)
-
-    def order_add_buy(self, amount_int, price_int=0):
-        return self.order_add('bid', amount_int, price_int)
-
-    def order_add_sell(self, amount_int, price_int=0):
-        return self.order_add('ask', amount_int, price_int)
 
     def order_cancel(self, oid):
         return self.signed_call('/order/cancel', {'oid': oid})
@@ -272,6 +279,13 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         elif name == 'wallet/history':
             # Result from the wallet_history method.
             self.evt.emit('wallet_history', result)
+        elif name == 'order/add':
+            # Result for the order_add method.
+            self.evt.emit('order_added', (result, req_id))
+        elif name == 'order/cancel':
+            # Result for the order_cancel method.
+            # Note: result['qid'] is being ignored for now.
+            self.evt.emit('order_canceled', (result['oid'], req_id))
 
         elif name.endswith('/trades/fetch'):
             # Result from the load_trades_since method.
@@ -577,7 +591,7 @@ class MtgoxFactoryClient(WebSocketClientFactory, ReconnectingClientFactory,
 
 def create_client(key='', secret='', currency="USD", secure=True,
         addr="websocket.mtgox.com", http_addr="data.mtgox.com/api",
-        debug_websocket=False):
+        debug_websocket=False, **kwargs):
 
     port = 443 if secure else 80
     ws_origin = "%s:%d" % (addr, port)
@@ -586,10 +600,10 @@ def create_client(key='', secret='', currency="USD", secure=True,
 
     http_api_url = '%s://%s' % ('https' if secure else 'http', http_addr)
 
-    factory = MtgoxFactoryClient(key, secret, currency.upper(),
-            http_api_url, url="%s%s%s" % (ws_addr, ws_path, currency),
+    factory = MtgoxFactoryClient(key, secret, currency.upper(), http_api_url,
+            url="%s%s%s" % (ws_addr, ws_path, currency),
             useragent="%s\x0d\x0aOrigin: %s" % (common.USER_AGENT, ws_origin),
-            debug=debug_websocket, debugCodePaths=debug_websocket)
+            debug=debug_websocket, debugCodePaths=debug_websocket, **kwargs)
     factory.setProtocolOptions(version=13)
 
     # The following timeout is the number of seconds to wait before assuming
