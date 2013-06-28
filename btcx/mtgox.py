@@ -374,7 +374,7 @@ class MtgoxProtocol(WebSocketClientProtocol, HTTPAPI):
         status = order['status']
         otype = order['type']
 
-        return common.Order(oid, otype, timestamp, status, price, amount,
+        return common.Order(oid, timestamp, otype, status, price, amount,
                 (currency, coin))
 
     def _handle_private_user_order(self, order):
